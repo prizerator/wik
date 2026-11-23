@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Мини-вики</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0e8577">
+<style>
+:root{
+  --bg:#f2f4f7; --surface:#ffffff; --ink:#14181f; --muted:#667085; --line:#e1e5eb;
+  --accent:#0e8577; --accent-ink:#ffffff;
+  --want:#c26a00; --done:#1f8a52;
+  --want-bg:#fdecd0; --done-bg:#e0f2e8;
+  --star:#e0a100; --danger:#d4493c;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#101317; --surface:#1a1e24; --ink:#e8ebef; --muted:#9099a6; --line:#2a303a;
+    --accent:#3cc6b4; --accent-ink:#06211d;
+    --want:#f2a93b; --done:#5fcf93;
+    --want-bg:#35260f; --done-bg:#1a2d24;
+    --star:#f2b928; --danger:#ff7a6e; color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.35;-webkit-text-size-adjust:100%;overscroll-behavior:none}
+body.is-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#app{height:100%;display:flex;flex-direction:column;max-width:1100px;margin:0 auto;padding-top:env(safe-area-inset-top)}
+header{display:flex;align-items:center;gap:8px;padding:14px 16px 8px}
+h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spacing:-.01em}
+.ghostbtn{background:transparent;border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:13px;color:var(--muted)}
+#syncDot{width:12px;height:12px;border-radius:50%;border:0;padding:0;background:var(--line);flex:none}
+#syncDot[data-s="ok"]{background:var(--done)}
+#syncDot[data-s="busy"]{background:var(--want);animation:pulse 1s ease-in-out infinite}
+#syncDot[data-s="err"]{background:var(--danger)}
+#syncDot[data-s="auth"]{background:var(--want);box-shadow:0 0 0 3px var(--want-bg)}
+.tools{padding:0 16px;display:flex;flex-direction:column;gap:8px}
+#q{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:6px 12px;font-size:14px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none}
+.tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:10px 16px 6px}
+.tab{border:0;border-radius:12px;padding:9px 6px;background:var(--surface);color:var(--muted);font-size:14px;font-weight:500;display:flex;flex-direction:column;align-items:center;gap:1px;box-shadow:inset 0 0 0 1px var(--line)}
+.tab b{font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums}
+.tab[aria-selected="true"]{box-shadow:inset 0 0 0 2px var(--c);background:var(--cbg)}
+.tab[aria-selected="true"] span{color:var(--c);font-weight:600}
+#board{flex:1;min-height:0;display:grid;grid-template-columns:1fr;gap:12px;padding:6px 16px 12px}
+.col{display:none;flex-direction:column;min-height:0;gap:8px;border-radius:14px}
+.col.active{display:flex}
+.colhead{display:none;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--c)}
+.colhead i{font-style:normal;background:var(--cbg);border-radius:999px;padding:1px 9px;font-size:13px}
+.list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px;-webkit-overflow-scrolling:touch}
+.card{position:relative;overflow:hidden;flex-shrink:0;--pw:min(44%,170px);text-align:left;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;display:flex;width:100%;min-height:58px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.card.dragging{opacity:.35}
+.cbody{position:relative;z-index:1;flex:1;min-width:0;padding:11px 12px;display:flex;flex-direction:column;gap:6px}
+.card.has-poster .cbody{padding-right:calc(var(--pw) * .62);min-height:104px}
+.poster{position:absolute;top:0;right:0;bottom:0;width:var(--pw);background-size:cover;background-position:center 18%;background-repeat:no-repeat;
+  -webkit-mask-image:linear-gradient(100deg,transparent 0%,rgba(0,0,0,.28) 28%,#000 62%);
+  mask-image:linear-gradient(100deg,transparent 0%,rgba(0,0,0,.28) 28%,#000 62%);
+  clip-path:polygon(16% 0,100% 0,100% 100%,0 100%)}
+.ct{font-weight:600;overflow-wrap:anywhere}
+.cn{color:var(--muted);font-size:14px;overflow-wrap:anywhere}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.tag{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border-radius:999px;padding:2px 9px 2px 7px;color:var(--ink)}
+.date{font-variant-numeric:tabular-nums}
+.stars{color:var(--star);letter-spacing:1px}
+.nowbadge{display:inline-flex;align-items:center;gap:6px;color:var(--want);font-weight:600;font-size:13px}
+.nowbadge i{width:8px;height:8px;border-radius:50%;background:var(--want);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.act{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:9px;padding:5px 10px;font-size:13.5px;font-weight:600}
+.act.on{background:var(--want);border-color:var(--want);color:var(--surface)}
+.act.ok{border-color:var(--done);color:var(--done)}
+.empty{color:var(--muted);text-align:center;padding:36px 12px;font-size:14px}
+.ghost{position:fixed;left:0;top:0;z-index:30;pointer-events:none;box-shadow:0 12px 30px rgba(0,0,0,.28)}
+.drop{outline:2px dashed var(--accent);outline-offset:2px}
+.col.drop{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+#addbar{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line)}
+#addType{flex:none;max-width:34%;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:0 8px}
+#addText{flex:1;min-width:0;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg)}
+#addbar .go{flex:none;border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:22px;padding:0 18px}
+#toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(10px);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:40;max-width:90%;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#overlay{position:fixed;inset:0;background:rgba(8,10,14,.5);display:none;align-items:flex-end;justify-content:center;z-index:20}
+#overlay.open{display:flex}
+.sheet{background:var(--surface);width:100%;max-width:560px;max-height:92%;overflow-y:auto;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
+.sheet h2{margin:0;font-size:17px;overflow-wrap:anywhere}
+.sheet h3{margin:6px 0 0;font-size:14px;color:var(--muted);font-weight:600;text-transform:none}
+.sheet label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+.sheet input[type=text],.sheet textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
+.sheet textarea{min-height:76px;resize:vertical}
+.sheet p{margin:0;font-size:13.5px;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+.seg{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.seg button{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:9px 4px;font-size:14px}
+.seg button[aria-pressed="true"]{border-color:var(--c);background:var(--cbg);color:var(--c);font-weight:600}
+.starpick{display:flex;gap:2px}
+.starpick button{border:0;background:transparent;font-size:34px;line-height:1;color:var(--line);padding:2px 4px}
+.starpick button.on{color:var(--star)}
+.posterrow{display:flex;gap:10px;align-items:center}
+.thumb{width:54px;height:76px;border-radius:8px;background:var(--bg) center/cover no-repeat;border:1px solid var(--line);flex:none}
+.actions{display:flex;gap:8px;margin-top:4px}
+.btn{flex:1;border:0;border-radius:12px;padding:12px;font-weight:700;background:var(--accent);color:var(--accent-ink)}
+.btn.sec{background:var(--bg);color:var(--ink);border:1px solid var(--line);font-weight:600}
+.btn.small{flex:none;padding:8px 12px;font-size:14px}
+.btn.del{flex:none;background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:600;padding:12px 14px}
+.btn.del[data-armed="1"]{border-color:var(--danger);color:var(--danger)}
+.status{font-size:13.5px;padding:8px 10px;border-radius:10px;background:var(--bg);overflow-wrap:anywhere}
+@media (min-width:820px){
+  .tabs{display:none}
+  #board{grid-template-columns:repeat(2,1fr);gap:18px;padding-top:12px}
+  .col{display:flex}
+  .colhead{display:flex}
+  #overlay{align-items:center}
+  .sheet{border-radius:20px;max-height:86%}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Книги, фильмы и тп</h1>
+    <button id="syncDot" type="button" aria-label="Состояние синхронизации" data-s="off"></button>
+    <button class="ghostbtn" id="sortBtn" type="button"></button>
+    <button class="ghostbtn" id="setBtn" type="button" aria-label="Настройки">Ещё</button>
+  </header>
+  <div class="tools">
+    <input id="q" type="search" placeholder="Поиск по названию и заметкам" autocomplete="off">
+    <div class="chips" id="chips"></div>
+  </div>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+  <main id="board"></main>
+  <form id="addbar" autocomplete="off">
+    <select id="addType" aria-label="Тип"></select>
+    <input id="addText" type="text" placeholder="Добавить…" enterkeyhint="done">
+    <button class="go" type="submit" aria-label="Добавить">+</button>
+  </form>
+</div>
+<div id="overlay"><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+<div id="toast" role="status"></div>
+
+<script>
+"use strict";
+const KEY = "wiki-v1";
+const G_KEY = "wiki-google";
+// Публичный идентификатор приложения Google (Client ID). Это не секрет, пароля у приложения нет.
+// Вставляется один раз при настройке, имеет вид 123456-abc.apps.googleusercontent.com
+const GOOGLE_CLIENT_ID = "";
+const G_SCOPE = "https://www.googleapis.com/auth/drive.file"; // только файлы, созданные самим приложением
+const FOLDER_NAME = "Мини-вики";
+const FILE_NAME = "wiki-data.json";
+const STATUSES = [
+  {id:"want", label:"Посмотреть", c:"var(--want)", bg:"var(--want-bg)"},
+  {id:"done", label:"Посмотрено", c:"var(--done)", bg:"var(--done-bg)"}
+];
+const DEFAULT_TYPES = ["фильм","сериал","мульт","книга","игра"];
+const TYPE_COLORS = {"фильм":"#e5484d","сериал":"#3e63dd","мульт":"#12a594","книга":"#8e4ec6","игра":"#e93d82"};
+const EXTRA_COLORS = ["#0090ff","#d6409f","#ab6400","#5b8c00","#6e56cf","#e54666"];
+function typeColor(t){
+  if (TYPE_COLORS[t]) return TYPE_COLORS[t];
+  let h = 0; for (const ch of t) h = (h*31 + ch.charCodeAt(0)) >>> 0;
+  return EXTRA_COLORS[h % EXTRA_COLORS.length];
+}
+const dot = t => `<i class="dot" style="background:${typeColor(t)}"></i>`;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtDate = d => d ? new Date(d).toLocaleDateString("ru-RU") : "";
+const stars = n => n ? "★".repeat(n) + "☆".repeat(5-n) : "";
+const stById = id => STATUSES.find(s => s.id === id);
+const newId = () => "i" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+/* ---------- data ---------- */
+let items = [];
+try { const v = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(v)) items = v; } catch(e) {}
+let g = {clientId:"", fileId:"", signedIn:false};
+try { const v = JSON.parse(localStorage.getItem(G_KEY)); if (v && typeof v === "object") g = {clientId:v.clientId || "", fileId:v.fileId || "", signedIn:!!v.signedIn}; } catch(e) {}
+const saveG = () => { try { localStorage.setItem(G_KEY, JSON.stringify(g)); } catch(e) {} };
+const clientId = () => GOOGLE_CLIENT_ID || g.clientId;
+const ui = {tab:"want", type:"", sort:"new", q:"", addType:"фильм"};
+
+const touch = it => { it.updated = Date.now(); return it; };
+const live = () => items.filter(i => !i.deleted);
+
+function persist(){
+  try { localStorage.setItem(KEY, JSON.stringify(items)); return true; }
+  catch(e) { toast("Не хватило места в браузере, уберите часть постеров"); return false; }
+}
+function save(){ persist(); scheduleSync(); }
+
+function mergeItems(a, b){
+  const m = new Map();
+  for (const it of a) m.set(it.id, it);
+  for (const it of b){
+    const cur = m.get(it.id);
+    if (!cur || (it.updated || 0) > (cur.updated || 0)) m.set(it.id, it);
+  }
+  const cut = Date.now() - 90 * 864e5;
+  return [...m.values()].filter(i => !(i.deleted && (i.updated || 0) < cut));
+}
+
+function allTypes(){
+  const set = new Set(DEFAULT_TYPES);
+  live().forEach(i => i.types.forEach(t => set.add(t)));
+  return [...set];
+}
+
+function visible(status){
+  const q = ui.q.trim().toLowerCase();
+  let list = live().filter(i => i.status === status);
+  if (ui.type) list = list.filter(i => i.types.includes(ui.type));
+  if (q) list = list.filter(i => (i.title + " " + i.note).toLowerCase().includes(q));
+  list.sort((a,b) => {
+    if (status === "want" && !!a.now !== !!b.now) return a.now ? -1 : 1;
+    const x = a.created || "", y = b.created || "";
+    return ui.sort === "new" ? (x < y ? 1 : x > y ? -1 : 0) : (x < y ? -1 : x > y ? 1 : 0);
+  });
+  return list;
+}
+
+/* ---------- синхронизация с Google Диском (папка «Мини-вики», только свои файлы) ---------- */
+let syncing = false, syncAgain = false, syncTimer = null, needGesture = false;
+let token = null, tokenExp = 0, gisPromise = null;
+function setSync(state, msg){
+  const d = $("#syncDot"); d.dataset.s = state; d.title = msg || "";
+  setSync.msg = msg || ""; const s = $("#syncStatus"); if (s) s.textContent = setSync.msg;
+}
+setSync.msg = "";
+const tokenValid = () => token && Date.now() < tokenExp - 60000;
+function scheduleSync(){
+  if (!g.signedIn) return;
+  clearTimeout(syncTimer); syncTimer = setTimeout(() => doSync(false), 1200);
+}
+function loadGIS(){
+  if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
+  if (gisPromise) return gisPromise;
+  gisPromise = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client"; s.async = true;
+    s.onload = res; s.onerror = () => { gisPromise = null; rej(new Error("Не удалось загрузить вход Google, проверь сеть")); };
+    document.head.appendChild(s);
+  });
+  return gisPromise;
+}
+function getToken(interactive){
+  if (tokenValid()) return Promise.resolve(token);
+  return new Promise(async (resolve, reject) => {
+    try {
+      await loadGIS();
+      const tc = google.accounts.oauth2.initTokenClient({
+        client_id: clientId(), scope: G_SCOPE,
+        callback: r => {
+          if (r.error) return reject(new Error(r.error));
+          token = r.access_token; tokenExp = Date.now() + (r.expires_in || 3600) * 1000;
+          g.signedIn = true; saveG(); resolve(token);
+        },
+        error_callback: e => reject(new Error((e && e.type) || "popup"))
+      });
+      tc.requestAccessToken({prompt: interactive ? "" : "none"});
+    } catch(e) { reject(e); }
+  });
+}
+async function drive(path, opts, tk){
+  const res = await fetch("https://www.googleapis.com/" + path, {...(opts || {}), headers:{Authorization:"Bearer " + tk, ...((opts && opts.headers) || {})}});
+  if (res.status === 401){ token = null; throw new Error("auth"); }
+  if (!res.ok){ const t = await res.text(); const err = new Error("Drive " + res.status + ": " + t.slice(0, 140)); err.status = res.status; throw err; }
+  return res;
+}
+function multipart(meta, content){
+  const b = "wiki" + Math.random().toString(36).slice(2);
+  return {type:"multipart/related; boundary=" + b,
+    body:`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${b}--`};
+}
+async function findOldest(q, tk){
+  const r = await (await drive("drive/v3/files?q=" + encodeURIComponent(q) + "&orderBy=createdTime&pageSize=10&fields=files(id)", {}, tk)).json();
+  return r.files && r.files[0] ? r.files[0].id : "";
+}
+async function ensureFile(tk){
+  if (g.fileId){
+    try {
+      const r = await (await drive("drive/v3/files/" + g.fileId + "?fields=id,trashed", {}, tk)).json();
+      if (!r.trashed) return g.fileId;
+    } catch(e) { if (e.status !== 404) throw e; }
+    g.fileId = "";
+  }
+  let folder = await findOldest("mimeType='application/vnd.google-apps.folder' and name='" + FOLDER_NAME + "' and trashed=false", tk);
+  if (!folder){
+    const r = await (await drive("drive/v3/files?fields=id", {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name:FOLDER_NAME, mimeType:"application/vnd.google-apps.folder"})}, tk)).json();
+    folder = r.id;
+  }
+  let file = await findOldest("name='" + FILE_NAME + "' and '" + folder + "' in parents and trashed=false", tk);
+  if (!file){
+    const mp = multipart({name:FILE_NAME, parents:[folder], mimeType:"application/json"}, JSON.stringify({items:[]}));
+    const r = await (await drive("upload/drive/v3/files?uploadType=multipart&fields=id", {method:"POST", headers:{"Content-Type":mp.type}, body:mp.body}, tk)).json();
+    file = r.id;
+  }
+  g.fileId = file; saveG();
+  return file;
+}
+const byId = a => [...a].sort((x, y) => x.id < y.id ? -1 : 1);
+async function doSync(interactive){
+  if (!clientId()){ setSync("off", "Нужен Client ID Google (настройка)"); return; }
+  if (!g.signedIn && !interactive){ setSync("off", "Войди в Google, чтобы синхронизировать"); return; }
+  if (!navigator.onLine){ setSync("err", "Нет сети, синхронизирую позже"); return; }
+  if (syncing){ syncAgain = true; return; }
+  syncing = true; setSync("busy", "Синхронизирую…");
+  try {
+    let tk;
+    try { tk = await getToken(interactive); }
+    catch(e) { needGesture = !interactive; setSync("auth", interactive ? "Вход не выполнен: " + e.message : "Нужно войти, нажми на кружок"); return; }
+    const id = await ensureFile(tk);
+    let remote = [];
+    try { const j = await (await drive("drive/v3/files/" + id + "?alt=media", {}, tk)).json(); remote = Array.isArray(j.items) ? j.items : []; } catch(e) { if (e.status) throw e; }
+    items = mergeItems(items, remote); persist();
+    if (JSON.stringify(byId(items)) !== JSON.stringify(byId(remote))){
+      await drive("upload/drive/v3/files/" + id + "?uploadType=media", {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({items})}, tk);
+    }
+    render();
+    const t = new Date().toLocaleTimeString("ru-RU", {hour:"2-digit", minute:"2-digit"});
+    setSync("ok", "Синхронизировано в " + t); needGesture = false;
+  } catch(e) {
+    if (e.message === "auth"){ needGesture = true; setSync("auth", "Нужно войти, нажми на кружок"); }
+    else setSync("err", e.message === "Failed to fetch" ? "Не удалось связаться с Google" : e.message);
+  } finally {
+    syncing = false;
+    if (syncAgain){ syncAgain = false; scheduleSync(); }
+  }
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") doSync(false); });
+window.addEventListener("online", () => doSync(false));
+// Если тихий вход не удался (браузер блокирует окно без нажатия), пробуем ещё раз при первом касании.
+document.addEventListener("pointerdown", () => { if (needGesture && g.signedIn && !tokenValid()){ needGesture = false; doSync(false); } }, true);
+
+/* ---------- render ---------- */
+function cardHtml(i){
+  const s = stById(i.status);
+  const tags = i.types.map(t => `<span class="tag">${dot(t)}${esc(t)}</span>`).join("");
+  const note = i.note ? `<div class="cn">${esc(i.note)}</div>` : "";
+  const rating = i.status === "done" && i.rating ? `<span class="stars" aria-label="Оценка ${i.rating} из 5">${stars(i.rating)}</span>` : "";
+  const nowb = i.now && i.status === "want" ? `<span class="nowbadge"><i></i>сейчас</span>` : "";
+  const acts = i.status === "want"
+    ? `<div class="acts"><button class="act${i.now?" on":""}" type="button" data-now="${i.id}">${i.now ? "Сейчас ●" : "▶ Сейчас"}</button><button class="act ok" type="button" data-done="${i.id}">✓ Готово</button></div>` : "";
+  const poster = i.poster ? `<div class="poster" style="background-image:url(${i.poster})"></div>` : "";
+  return `<article class="card${i.poster?" has-poster":""}" tabindex="0" role="button" data-id="${i.id}" style="--c:${s.c}">
+    ${poster}<div class="cbody"><div class="ct">${esc(i.title)}</div>${note}
+    <div class="meta">${nowb}${tags}${rating}<span class="date">${fmtDate(i.created)}</span></div>${acts}</div></article>`;
+}
+
+function render(){
+  $("#sortBtn").textContent = ui.sort === "new" ? "Сначала новые" : "Сначала старые";
+  const types = allTypes();
+  $("#chips").innerHTML = `<button class="chip" type="button" data-type="" aria-pressed="${ui.type===""}">Все</button>` +
+    types.map(t => `<button class="chip" type="button" data-type="${esc(t)}" aria-pressed="${ui.type===t}">${dot(t)}${esc(t)}</button>`).join("");
+  const sel = $("#addType");
+  sel.innerHTML = `<option value="">без типа</option>` + types.map(t => `<option value="${esc(t)}"${t===ui.addType?" selected":""}>${esc(t)}</option>`).join("");
+  if (!ui.addType) sel.value = "";
+  $("#tabs").innerHTML = STATUSES.map(s => {
+    const n = visible(s.id).length;
+    return `<button class="tab" type="button" role="tab" data-tab="${s.id}" aria-selected="${ui.tab===s.id}" style="--c:${s.c};--cbg:${s.bg}"><b>${n}</b><span>${s.label}</span></button>`;
+  }).join("");
+  const none = live().length === 0;
+  $("#board").innerHTML = STATUSES.map(s => {
+    const list = visible(s.id);
+    const msg = none ? "Пока пусто. Добавь запись внизу или открой «Ещё» → импорт из Notion" : "Здесь пока пусто";
+    const body = list.length ? list.map(cardHtml).join("") : `<div class="empty">${msg}</div>`;
+    return `<section class="col${ui.tab===s.id?" active":""}" data-col="${s.id}" style="--c:${s.c};--cbg:${s.bg}">
+      <div class="colhead">${s.label}<i>${list.length}</i></div><div class="list">${body}</div></section>`;
+  }).join("");
+}
+
+/* ---------- actions ---------- */
+function markDone(it){ it.status = "done"; it.now = false; touch(it); }
+function backToWant(it){ it.status = "want"; it.rating = 0; touch(it); }
+
+function openOverlay(html){ $("#sheet").innerHTML = html; $("#overlay").classList.add("open"); }
+function closeOverlay(){ $("#overlay").classList.remove("open"); $("#sheet").innerHTML = ""; render(); }
+
+function openRate(id){
+  const it = items.find(x => x.id === id); if (!it) return;
+  openOverlay(`
+    <h2>Посмотрено: ${esc(it.title)}</h2>
+    <div><label>Поставь оценку</label><div class="starpick">${[1,2,3,4,5].map(n => `<button type="button" data-r="${n}" aria-label="${n}">★</button>`).join("")}</div></div>
+    <div class="actions"><button class="btn sec" type="button" id="rSkip">Без оценки</button></div>`);
+  $("#sheet").onclick = e => { const r = e.target.closest("[data-r]"); if (r){ it.rating = +r.dataset.r; touch(it); save(); closeOverlay(); } };
+  $("#rSkip").onclick = closeOverlay;
+}
+
+function shrinkImage(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const W = 240, scale = Math.min(1, W / img.width);
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", .72));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("img")); };
+    img.src = url;
+  });
+}
+
+function openEdit(id){
+  const it = items.find(x => x.id === id); if (!it) return;
+  const d = {...it, types:[...it.types], showNew:false};
+  const sync = () => { const t = $("#eTitle"); if (t){ d.title = t.value; d.note = $("#eNote").value; } };
+  const paint = () => {
+    const types = [...new Set([...allTypes(), ...d.types])];
+    openOverlay(`
+      <h2>Запись</h2>
+      <div><label for="eTitle">Название</label><input id="eTitle" type="text" value="${esc(d.title)}"></div>
+      <div><label for="eNote">Заметка</label><textarea id="eNote">${esc(d.note)}</textarea></div>
+      <div><label>Тип</label><div class="row">${types.map(t => `<button class="chip" type="button" data-t="${esc(t)}" aria-pressed="${d.types.includes(t)}">${dot(t)}${esc(t)}</button>`).join("")}<button class="chip" type="button" data-other="1">＋ другое</button></div>
+        ${d.showNew ? `<div class="row" style="margin-top:8px"><input id="eNew" type="text" placeholder="свой тип, например подкаст" style="flex:1;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg)"><button class="btn small" type="button" id="eNewOk">Добавить</button></div>` : ""}</div>
+      <div><label>Список</label><div class="seg">${STATUSES.map(s => `<button type="button" data-s="${s.id}" aria-pressed="${d.status===s.id}" style="--c:${s.c};--cbg:${s.bg}">${s.label}</button>`).join("")}</div></div>
+      ${d.status==="want" ? `<div><button class="chip" type="button" data-now="1" aria-pressed="${!!d.now}">${d.now ? "Сейчас смотрю / читаю ●" : "▶ Сейчас смотрю / читаю"}</button></div>` : ""}
+      ${d.status==="done" ? `<div><label>Оценка</label><div class="starpick">${[1,2,3,4,5].map(n => `<button type="button" data-r="${n}" class="${d.rating>=n?"on":""}" aria-label="${n}">★</button>`).join("")}</div></div>` : ""}
+      <div><label>Постер</label><div class="posterrow"><div class="thumb"${d.poster ? ` style="background-image:url(${d.poster})"` : ""}></div>
+        <button class="btn sec small" type="button" id="ePick">${d.poster ? "Сменить" : "Добавить из галереи"}</button>
+        ${d.poster ? `<button class="btn sec small" type="button" id="ePosterDel">Убрать</button>` : ""}
+        <input id="eFile" type="file" accept="image/*" hidden></div></div>
+      <div class="actions"><button class="btn del" type="button" id="eDel">Удалить</button><button class="btn sec" type="button" id="eCancel">Отмена</button><button class="btn" type="button" id="eSave">Сохранить</button></div>`);
+    $("#sheet").onclick = e => {
+      const t = e.target.closest("[data-t]"), s = e.target.closest("[data-s]"), r = e.target.closest("[data-r]"),
+            n = e.target.closest("[data-now]"), o = e.target.closest("[data-other]");
+      if (t){ sync(); const v = t.dataset.t; d.types = d.types.includes(v) ? d.types.filter(x => x !== v) : [...d.types, v]; paint(); }
+      else if (s){ sync(); d.status = s.dataset.s; if (d.status !== "done") d.rating = 0; if (d.status === "done") d.now = false; paint(); }
+      else if (r){ sync(); const k = +r.dataset.r; d.rating = d.rating === k ? 0 : k; paint(); }
+      else if (n){ sync(); d.now = !d.now; paint(); }
+      else if (o){ sync(); d.showNew = !d.showNew; paint(); const inp = $("#eNew"); if (inp) inp.focus(); }
+    };
+    const addCustom = () => {
+      const inp = $("#eNew"); if (!inp) return;
+      const v = inp.value.trim().toLowerCase(); if (!v) return;
+      sync(); if (!d.types.includes(v)) d.types.push(v); d.showNew = false; paint();
+    };
+    const inp = $("#eNew");
+    if (inp) inp.onkeydown = e => { if (e.key === "Enter"){ e.preventDefault(); addCustom(); } };
+    const ok = $("#eNewOk"); if (ok) ok.onclick = addCustom;
+    $("#ePick").onclick = () => $("#eFile").click();
+    $("#eFile").onchange = async e => {
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      try { sync(); d.poster = await shrinkImage(f); paint(); } catch(err) { toast("Не получилось открыть картинку"); }
+    };
+    const pd = $("#ePosterDel"); if (pd) pd.onclick = () => { sync(); d.poster = ""; paint(); };
+    $("#eCancel").onclick = closeOverlay;
+    $("#eSave").onclick = () => {
+      sync();
+      if (!d.title.trim()){ $("#eTitle").focus(); return; }
+      Object.assign(it, {title:d.title.trim(), note:d.note.trim(), types:d.types, status:d.status, now:d.status==="want" ? !!d.now : false, rating:d.status==="done" ? d.rating : 0, poster:d.poster});
+      touch(it); save(); closeOverlay();
+    };
+    const del = $("#eDel");
+    del.onclick = () => {
+      if (del.dataset.armed !== "1"){ del.dataset.armed = "1"; del.textContent = "Точно удалить?"; return; }
+      it.deleted = true; touch(it); save(); closeOverlay();
+    };
+  };
+  paint();
+}
+
+/* ---------- import from Notion CSV ---------- */
+function parseCSV(text){
+  text = text.replace(/^﻿/, "");
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){
+      if (c === '"'){ if (text[i+1] === '"'){ f += '"'; i++; } else q = false; }
+      else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ","){ row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r"){ if (c === "\r" && text[i+1] === "\n") i++; row.push(f); f = ""; rows.push(row); row = []; }
+    else f += c;
+  }
+  if (f !== "" || row.length){ row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim() !== ""));
+}
+function importCSV(text){
+  const rows = parseCSV(text);
+  if (rows.length < 2) return {added:0, skipped:0, error:"В файле нет строк"};
+  const head = rows[0].map(h => h.trim().toLowerCase());
+  const col = (...names) => head.findIndex(h => names.includes(h));
+  const iT = col("название","name","title"), iD = col("date","дата"), iN = col("пометки","заметки","notes"), iS = col("статус","status"), iY = col("тип","type");
+  if (iT < 0) return {added:0, skipped:0, error:"Не нашёл колонку «Название»"};
+  const have = new Set(live().map(i => i.title.trim().toLowerCase()));
+  let added = 0, skipped = 0;
+  for (const r of rows.slice(1)){
+    const title = (r[iT] || "").trim(); if (!title) continue;
+    if (have.has(title.toLowerCase())){ skipped++; continue; }
+    const st = (iS >= 0 ? r[iS] : "").trim().toLowerCase();
+    const done = st === "done" || st === "готово";
+    const doing = st === "in progress" || st === "в процессе";
+    let created = new Date().toISOString();
+    if (iD >= 0 && r[iD]){ const t = Date.parse(r[iD]); if (!isNaN(t)) created = new Date(t).toISOString(); }
+    const it = {id:newId(), title, note:(iN >= 0 ? r[iN] : "").trim(), status:done ? "done" : "want", now:doing, poster:"",
+      types:(iY >= 0 ? r[iY] : "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean), created, rating:0};
+    touch(it); items.push(it); have.add(title.toLowerCase()); added++;
+  }
+  return {added, skipped};
+}
+
+/* ---------- settings ---------- */
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; });
+function randomKey(){
+  const a = new Uint8Array(18); crypto.getRandomValues(a);
+  return [...a].map(b => "abcdefghijkmnpqrstuvwxyz23456789"[b % 32]).join("");
+}
+function openSettings(){
+  openOverlay(`
+    <h2>Настройки</h2>
+    <h3>Синхронизация с Google Диском</h3>
+    <p>Приложение видит на Диске только свою папку «${FOLDER_NAME}». Остальной Диск и почта ему недоступны.</p>
+    ${GOOGLE_CLIENT_ID ? "" : `<div><label for="gId">Client ID Google</label><input id="gId" type="text" value="${esc(g.clientId)}" placeholder="…apps.googleusercontent.com" autocapitalize="off" autocomplete="off"></div>`}
+    <div class="status" id="syncStatus">${esc(setSync.msg || (g.signedIn ? "Готово к синхронизации" : "Не выполнен вход"))}</div>
+    <div class="actions"><button class="btn" type="button" id="gIn">${g.signedIn ? "Синхронизировать сейчас" : "Войти в Google"}</button></div>
+    ${g.signedIn ? `<div class="actions"><button class="btn sec" type="button" id="gOut">Выйти из Google</button></div>` : ""}
+    <h3>Импорт из Notion</h3>
+    <p>Выгрузи базу из Notion в CSV и выбери файл. Записи, которые уже есть (по названию), пропускаются.</p>
+    <div class="actions"><button class="btn sec" type="button" id="cImp">Выбрать CSV</button><input id="cFile" type="file" accept=".csv,text/csv" hidden></div>
+    ${installEvt ? `<h3>Приложение</h3><div class="actions"><button class="btn sec" type="button" id="cInst">Установить на экран</button></div>` : ""}
+    <div class="actions"><button class="btn sec" type="button" id="cClose">Закрыть</button></div>`);
+  $("#gIn").onclick = () => {
+    const gi = $("#gId"); if (gi){ g.clientId = gi.value.trim(); saveG(); }
+    if (!clientId()){ setSync("off", "Нужен Client ID Google"); return; }
+    doSync(true);
+  };
+  const go = $("#gOut");
+  if (go) go.onclick = () => {
+    try { if (token && window.google) google.accounts.oauth2.revoke(token, () => {}); } catch(e) {}
+    token = null; g.signedIn = false; g.fileId = ""; saveG(); setSync("off", "Вышел из Google"); closeOverlay();
+  };
+  $("#cImp").onclick = () => $("#cFile").click();
+  $("#cFile").onchange = async e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const r = importCSV(await f.text());
+    if (r.error){ toast(r.error); return; }
+    save(); closeOverlay(); toast(`Добавлено: ${r.added}, пропущено: ${r.skipped}`);
+  };
+  const ib = $("#cInst"); if (ib) ib.onclick = async () => { installEvt.prompt(); installEvt = null; closeOverlay(); };
+  $("#cClose").onclick = closeOverlay;
+  $("#sheet").onclick = null;
+}
+
+/* ---------- drag and drop ---------- */
+let drag = null, lastDragEnd = 0;
+
+function describeTarget(el){
+  if (!el) return null;
+  const chip = el.closest("#chips [data-type]");
+  if (chip && chip.dataset.type) return {kind:"type", value:chip.dataset.type, el:chip};
+  const tab = el.closest("#tabs [data-tab]");
+  if (tab) return {kind:"status", value:tab.dataset.tab, el:tab};
+  const col = el.closest(".col[data-col]");
+  if (col) return {kind:"status", value:col.dataset.col, el:col};
+  return null;
+}
+function beginDrag(){
+  if (!drag || drag.started) return;
+  drag.started = true;
+  const r = drag.card.getBoundingClientRect();
+  const g = drag.card.cloneNode(true);
+  g.classList.add("ghost"); g.classList.remove("dragging");
+  g.style.width = Math.min(r.width, 460) + "px";
+  document.body.appendChild(g);
+  drag.ghost = g; drag.offX = Math.min(drag.x - r.left, 120); drag.offY = Math.min(drag.y - r.top, 40);
+  drag.card.classList.add("dragging");
+  document.body.classList.add("is-dragging");
+  try { if (navigator.vibrate) navigator.vibrate(12); } catch(e) {}
+  moveGhost(drag.x, drag.y);
+}
+function moveGhost(x, y){ drag.ghost.style.transform = `translate(${x - drag.offX}px,${y - drag.offY}px) rotate(1.2deg)`; }
+function clearHover(){ document.querySelectorAll(".drop").forEach(n => n.classList.remove("drop")); }
+function endDrag(){
+  if (!drag) return;
+  clearTimeout(drag.timer);
+  if (drag.ghost) drag.ghost.remove();
+  document.body.classList.remove("is-dragging");
+  clearHover();
+  drag = null;
+}
+function applyDrop(id, t){
+  const it = items.find(x => x.id === id); if (!it || !t) return;
+  if (t.kind === "type"){
+    if (it.types.includes(t.value)){ toast("Уже: " + t.value); return; }
+    it.types.push(t.value); touch(it); toast("Добавлен тип: " + t.value);
+  } else if (t.kind === "status"){
+    if (it.status === t.value) return;
+    if (t.value === "done"){ markDone(it); save(); render(); openRate(it.id); return; }
+    backToWant(it); toast("Вернул в «Посмотреть»");
+  }
+  save(); render();
+}
+
+$("#board").addEventListener("pointerdown", e => {
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  const card = e.target.closest(".card");
+  if (!card || e.target.closest("button")) return;
+  drag = {id:card.dataset.id, card, x:e.clientX, y:e.clientY, pid:e.pointerId, ptype:e.pointerType, started:false};
+  if (e.pointerType !== "mouse") drag.timer = setTimeout(beginDrag, 380);
+});
+document.addEventListener("pointermove", e => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  if (!drag.started){
+    const moved = Math.hypot(e.clientX - drag.x, e.clientY - drag.y);
+    if (drag.ptype === "mouse"){ if (moved > 6) beginDrag(); }
+    else if (moved > 10){ clearTimeout(drag.timer); drag = null; return; }
+    if (!drag || !drag.started) return;
+  }
+  moveGhost(e.clientX, e.clientY);
+  const t = describeTarget(document.elementFromPoint(e.clientX, e.clientY));
+  clearHover();
+  const it = items.find(x => x.id === drag.id);
+  if (t && it && (t.kind === "type" || it.status !== t.value)) t.el.classList.add("drop");
+});
+document.addEventListener("pointerup", e => {
+  if (!drag || e.pointerId !== drag.pid) return;
+  if (drag.started){
+    const t = describeTarget(document.elementFromPoint(e.clientX, e.clientY));
+    const id = drag.id;
+    lastDragEnd = Date.now();
+    endDrag();
+    applyDrop(id, t);
+  } else endDrag();
+});
+document.addEventListener("pointercancel", e => { if (drag && e.pointerId === drag.pid){ if (drag.started) lastDragEnd = Date.now(); endDrag(); } });
+document.addEventListener("touchmove", e => { if (drag && drag.started) e.preventDefault(); }, {passive:false});
+$("#board").addEventListener("contextmenu", e => { if (e.target.closest(".card")) e.preventDefault(); });
+
+/* ---------- other events ---------- */
+$("#overlay").addEventListener("click", e => { if (e.target.id === "overlay") closeOverlay(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#overlay").classList.contains("open")) closeOverlay(); });
+$("#chips").addEventListener("click", e => {
+  const b = e.target.closest("[data-type]"); if (!b) return;
+  ui.type = b.dataset.type; render();
+});
+$("#tabs").addEventListener("click", e => {
+  const b = e.target.closest("[data-tab]"); if (!b) return;
+  ui.tab = b.dataset.tab; render();
+});
+$("#board").addEventListener("click", e => {
+  if (Date.now() - lastDragEnd < 450) return;
+  const nb = e.target.closest("[data-now]");
+  if (nb){ const it = items.find(x => x.id === nb.dataset.now); if (it){ it.now = !it.now; touch(it); save(); render(); toast(it.now ? "Отмечено: сейчас" : "Снято"); } return; }
+  const db = e.target.closest("[data-done]");
+  if (db){ const it = items.find(x => x.id === db.dataset.done); if (it){ markDone(it); save(); render(); openRate(it.id); } return; }
+  const c = e.target.closest("[data-id]"); if (c) openEdit(c.dataset.id);
+});
+$("#board").addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const c = e.target.closest(".card"); if (c && e.target === c){ e.preventDefault(); openEdit(c.dataset.id); }
+});
+$("#q").addEventListener("input", e => { ui.q = e.target.value; render(); });
+$("#sortBtn").addEventListener("click", () => { ui.sort = ui.sort === "new" ? "old" : "new"; render(); });
+$("#setBtn").addEventListener("click", openSettings);
+$("#syncDot").addEventListener("click", () => { if ($("#syncDot").dataset.s === "auth") doSync(true); else openSettings(); });
+$("#addType").addEventListener("change", e => { ui.addType = e.target.value; });
+
+function addItem(title, note, type){
+  const it = {id:newId(), title, note:note || "", status:"want", now:false, poster:"", types:type ? [type] : [], created:new Date().toISOString(), rating:0};
+  touch(it); items.push(it); save();
+}
+$("#addbar").addEventListener("submit", e => {
+  e.preventDefault();
+  const inp = $("#addText"), v = inp.value.trim(); if (!v) return;
+  addItem(v, "", ui.addType);
+  inp.value = ""; ui.tab = "want"; ui.q = ""; $("#q").value = ""; render();
+  const list = document.querySelector(".col.active .list"); if (list) list.scrollTop = 0;
+});
+
+/* ---------- share target: ссылки из других приложений ---------- */
+(function handleShare(){
+  const p = new URLSearchParams(location.search);
+  const title = (p.get("title") || "").trim(), text = (p.get("text") || "").trim(), url = (p.get("url") || "").trim();
+  if (!title && !text && !url) return;
+  const link = url || (/^https?:\/\//i.test(text) ? text : "");
+  const name = title || (text && text !== link ? text : "") || link;
+  const note = link && name !== link ? link : "";
+  addItem(name.slice(0, 200), note, "");
+  try { history.replaceState(null, "", location.pathname); } catch(e) {}
+  setTimeout(() => toast("Добавлено из «Поделиться»"), 400);
+})();
+
+if ("serviceWorker" in navigator){
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+
+render();
+setSync("off", g.signedIn ? "Синхронизация включена" : "Войди в Google, чтобы синхронизировать");
+doSync(false);
+</script>
+</body>
+</html>
