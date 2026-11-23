@@ -1,6 +1,6 @@
 {
-  "name": "Мини-вики",
-  "short_name": "Вики",
+  "name": "wikivazr",
+  "short_name": "wikivazr",
   "description": "Мои списки: что посмотреть, почитать, купить",
   "start_url": "./",
   "scope": "./",

@@ -1,4 +1,4 @@
-# Мини-вики: запуск
+# wikivazr: запуск
 
 1. Данные (Google Диск): script.google.com → Новый проект → вставь `apps-script/Code.gs`,
    замени ключ, Deploy → New deployment → Web app (Execute as: Me, Access: Anyone), скопируй URL.

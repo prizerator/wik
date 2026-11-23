@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Мини-вики</title>
+<title>wikivazr</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -158,7 +158,7 @@ const G_KEY = "wiki-google";
 // Вставляется один раз при настройке, имеет вид 123456-abc.apps.googleusercontent.com
 const GOOGLE_CLIENT_ID = "295729212309-nbk8962qsvl155q01voacgh810kps9nb.apps.googleusercontent.com";
 const G_SCOPE = "https://www.googleapis.com/auth/drive.file"; // только файлы, созданные самим приложением
-const FOLDER_NAME = "Мини-вики";
+const FOLDER_NAME = "wikivazr";
 const FILE_NAME = "wiki-data.json";
 const STATUSES = [
   {id:"want", label:"Посмотреть", c:"var(--want)", bg:"var(--want-bg)"},
@@ -234,7 +234,7 @@ function visible(status){
   return list;
 }
 
-/* ---------- синхронизация с Google Диском (папка «Мини-вики», только свои файлы) ---------- */
+/* ---------- синхронизация с Google Диском (папка «wikivazr», только свои файлы) ---------- */
 let syncing = false, syncAgain = false, syncTimer = null, needGesture = false;
 let token = null, tokenExp = 0, gisPromise = null;
 try { const v = JSON.parse(localStorage.getItem("wiki-tok")); if (v && v.t && v.e > Date.now() + 60000){ token = v.t; tokenExp = v.e; } } catch(e) {}
