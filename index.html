@@ -237,6 +237,7 @@ function visible(status){
 /* ---------- синхронизация с Google Диском (папка «Мини-вики», только свои файлы) ---------- */
 let syncing = false, syncAgain = false, syncTimer = null, needGesture = false;
 let token = null, tokenExp = 0, gisPromise = null;
+try { const v = JSON.parse(localStorage.getItem("wiki-tok")); if (v && v.t && v.e > Date.now() + 60000){ token = v.t; tokenExp = v.e; } } catch(e) {}
 function setSync(state, msg){
   const d = $("#syncDot"); d.dataset.s = state; d.title = msg || "";
   setSync.msg = msg || ""; const s = $("#syncStatus"); if (s) s.textContent = setSync.msg;
@@ -260,6 +261,7 @@ function loadGIS(){
 }
 function getToken(interactive){
   if (tokenValid()) return Promise.resolve(token);
+  if (!interactive) return Promise.reject(new Error("auth"));
   return new Promise(async (resolve, reject) => {
     try {
       await loadGIS();
@@ -267,7 +269,7 @@ function getToken(interactive){
         client_id: clientId(), scope: G_SCOPE,
         callback: r => {
           if (r.error) return reject(new Error(r.error));
-          token = r.access_token; tokenExp = Date.now() + (r.expires_in || 3600) * 1000;
+          token = r.access_token; tokenExp = Date.now() + (r.expires_in || 3600) * 1000; try { localStorage.setItem("wiki-tok", JSON.stringify({t:token, e:tokenExp})); } catch(e) {}
           g.signedIn = true; saveG(); resolve(token);
         },
         error_callback: e => reject(new Error((e && e.type) || "popup"))
@@ -278,7 +280,7 @@ function getToken(interactive){
 }
 async function drive(path, opts, tk){
   const res = await fetch("https://www.googleapis.com/" + path, {...(opts || {}), headers:{Authorization:"Bearer " + tk, ...((opts && opts.headers) || {})}});
-  if (res.status === 401){ token = null; throw new Error("auth"); }
+  if (res.status === 401){ token = null; try { localStorage.removeItem("wiki-tok"); } catch(e) {} throw new Error("auth"); }
   if (!res.ok){ const t = await res.text(); const err = new Error("Drive " + res.status + ": " + t.slice(0, 140)); err.status = res.status; throw err; }
   return res;
 }
@@ -350,8 +352,6 @@ let lastSync = 0, tapRetry = 1;
 const syncIfStale = () => { if (Date.now() - lastSync > 5 * 60000) doSync(false); };
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncIfStale(); });
 window.addEventListener("online", syncIfStale);
-// Если тихий вход не удался (браузер блокирует окно без нажатия), пробуем ещё раз при первом касании.
-document.addEventListener("pointerdown", () => { if (needGesture && tapRetry > 0 && g.signedIn && !tokenValid()){ tapRetry--; needGesture = false; doSync(false); } }, true);
 
 /* ---------- render ---------- */
 function cardHtml(i){
@@ -552,7 +552,7 @@ function openSettings(){
   const go = $("#gOut");
   if (go) go.onclick = () => {
     try { if (token && window.google) google.accounts.oauth2.revoke(token, () => {}); } catch(e) {}
-    token = null; g.signedIn = false; g.fileId = ""; saveG(); setSync("off", "Вышел из Google"); closeOverlay();
+    token = null; try { localStorage.removeItem("wiki-tok"); } catch(e) {} g.signedIn = false; g.fileId = ""; saveG(); setSync("off", "Вышел из Google"); closeOverlay();
   };
   $("#cImp").onclick = () => $("#cFile").click();
   $("#cFile").onchange = async e => {
