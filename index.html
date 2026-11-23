@@ -122,6 +122,8 @@ h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spaci
 .starpick button{border:0;background:transparent;font-size:34px;line-height:1;color:var(--line);padding:2px 4px}
 .starpick button.on{color:var(--star)}
 .posterrow{display:flex;gap:10px;align-items:center}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.pcell{aspect-ratio:2/3;border:1px solid var(--line);border-radius:10px;background:var(--bg) center/cover no-repeat;padding:0}
 .thumb{width:54px;height:76px;border-radius:8px;background:var(--bg) center/cover no-repeat;border:1px solid var(--line);flex:none}
 .actions{display:flex;gap:8px;margin-top:4px}
 .btn{flex:1;border:0;border-radius:12px;padding:12px;font-weight:700;background:var(--grad);color:#fff}
@@ -193,6 +195,7 @@ function typeColor(t){
   let h = 0; for (const ch of t) h = (h*31 + ch.charCodeAt(0)) >>> 0;
   return EXTRA_COLORS[h % EXTRA_COLORS.length];
 }
+const cssUrl = u => String(u).replace(/['"() ]/g, c => ({"'":"%27",'"':"%22","(":"%28",")":"%29"," ":"%20"}[c]));
 const dot = t => `<i class="dot" style="background:${typeColor(t)}"></i>`;
 
 const $ = s => document.querySelector(s);
@@ -389,7 +392,7 @@ function cardHtml(i){
   const link = c.link && /^https?:\/\//i.test(i.link || "") ? `<a class="tag" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">🔗 ссылка</a>` : "";
   const acts = i.status === "want" && (c.now || c.doneBtn)
     ? `<div class="acts">${c.now ? `<button class="act${i.now?" on":""}" type="button" data-now="${i.id}">${i.now ? "Сейчас ●" : "▶ Сейчас"}</button>` : ""}${c.doneBtn ? `<button class="act ok" type="button" data-done="${i.id}">${c.doneBtn}</button>` : ""}</div>` : "";
-  const poster = i.poster ? `<div class="poster" style="background-image:url(${i.poster})"></div>` : "";
+  const poster = i.poster ? `<div class="poster" style="background-image:url('${cssUrl(i.poster)}')"></div>` : "";
   return `<article class="card${i.poster?" has-poster":""}" tabindex="0" role="button" data-id="${i.id}" style="--c:${s.c}">
     ${poster}<div class="cbody"><div class="ct">${esc(i.title)}</div>${note}
     <div class="meta">${nowb}${tags}${due}${price}${link}${rating}<span class="date">${fmtDate(i.created)}</span></div>${acts}</div></article>`;
@@ -459,6 +462,30 @@ function shrinkImage(file){
   });
 }
 
+async function findPosters(title, types){
+  const t = (title || "").trim(); if (!t) return [];
+  const tp = types || [], isBook = tp.includes("книга");
+  const word = tp.includes("сериал") ? "сериал" : tp.includes("мульт") ? "мультфильм" : tp.includes("игра") ? "игра" : isBook ? "книга" : "фильм";
+  const wiki = async (lang, q) => {
+    try {
+      const r = await fetch(`https://${lang}.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=8&prop=pageimages&piprop=thumbnail&pithumbsize=300&format=json&origin=*`);
+      const j = await r.json();
+      return Object.values((j.query || {}).pages || {}).sort((a, b) => a.index - b.index).filter(p => p.thumbnail).map(p => ({url:p.thumbnail.source, label:p.title}));
+    } catch(e) { return []; }
+  };
+  const ol = async () => {
+    try {
+      const r = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(t)}&limit=8&fields=title,cover_i`);
+      const j = await r.json();
+      return (j.docs || []).filter(d => d.cover_i).map(d => ({url:`https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg`, label:d.title}));
+    } catch(e) { return []; }
+  };
+  const parts = await Promise.all(isBook ? [ol(), wiki("ru", t + " " + word)] : [wiki("ru", t + " " + word), wiki("en", t)]);
+  const seen = new Set(), out = [];
+  parts.flat().forEach(x => { if (/^https:\/\//.test(x.url) && !seen.has(x.url)){ seen.add(x.url); out.push(x); } });
+  return out.slice(0, 9);
+}
+
 function openEdit(id){
   const it = items.find(x => x.id === id); if (!it) return;
   const c = L();
@@ -478,18 +505,22 @@ function openEdit(id){
       ${c.st.length > 1 ? `<div><label>Список</label><div class="seg">${c.st.map(s => `<button type="button" data-s="${s.id}" aria-pressed="${d.status===s.id}" style="--c:${s.c};--cbg:${s.bg}">${s.label}</button>`).join("")}</div></div>` : ""}
       ${c.now && d.status==="want" ? `<div><button class="chip" type="button" data-now="1" aria-pressed="${!!d.now}">${d.now ? c.now + " ●" : "▶ " + c.now}</button></div>` : ""}
       ${c.rating && d.status==="done" ? `<div><label>Оценка</label><div class="starpick">${[1,2,3,4,5].map(n => `<button type="button" data-r="${n}" class="${d.rating>=n?"on":""}" aria-label="${n}">★</button>`).join("")}</div></div>` : ""}
-      ${c.poster ? `<div><label>${c.id==="media" ? "Постер" : "Картинка"}</label><div class="posterrow"><div class="thumb"${d.poster ? ` style="background-image:url(${d.poster})"` : ""}></div>
+      ${c.poster ? `<div><label>${c.id==="media" ? "Постер" : "Картинка"}</label><div class="posterrow"><div class="thumb"${d.poster ? ` style="background-image:url('${cssUrl(d.poster)}')"` : ""}></div>
         <button class="btn sec small" type="button" id="ePick">${d.poster ? "Сменить" : "Добавить из галереи"}</button>
         ${d.poster ? `<button class="btn sec small" type="button" id="ePosterDel">Убрать</button>` : ""}
-        <input id="eFile" type="file" accept="image/*" hidden></div></div>` : ""}
+        <input id="eFile" type="file" accept="image/*" hidden></div>
+        ${c.id === "media" ? `<div style="margin-top:8px"><button class="btn sec small" type="button" data-find="1">${d.loading ? "Ищу…" : "Найти постер"}</button></div>` : ""}
+        ${d.opts ? (d.opts.length ? `<div class="pgrid">${d.opts.map((o, k) => `<button type="button" class="pcell" data-pu="${k}" aria-label="${esc(o.label)}" style="background-image:url('${cssUrl(o.url)}')"></button>`).join("")}</div><p>Нажми на картинку, чтобы выбрать</p>` : `<p>Ничего не нашлось. Можно добавить из галереи.</p>`) : ""}</div>` : ""}
       <div class="actions"><button class="btn del" type="button" id="eDel">Удалить</button><button class="btn sec" type="button" id="eCancel">Отмена</button><button class="btn" type="button" id="eSave">Сохранить</button></div>`);
     $("#sheet").onclick = e => {
       const t = e.target.closest("[data-t]"), s = e.target.closest("[data-s]"), r = e.target.closest("[data-r]"),
-            n = e.target.closest("[data-now]"), o = e.target.closest("[data-other]");
+            n = e.target.closest("[data-now]"), o = e.target.closest("[data-other]"), pu = e.target.closest("[data-pu]"), fd = e.target.closest("[data-find]");
       if (t){ sync(); const v = t.dataset.t; d.types = d.types.includes(v) ? d.types.filter(x => x !== v) : [...d.types, v]; paint(); }
       else if (s){ sync(); d.status = s.dataset.s; if (d.status !== "done") d.rating = 0; if (d.status === "done") d.now = false; paint(); }
       else if (r){ sync(); const k = +r.dataset.r; d.rating = d.rating === k ? 0 : k; paint(); }
       else if (n){ sync(); d.now = !d.now; paint(); }
+      else if (pu){ sync(); d.poster = d.opts[+pu.dataset.pu].url; d.opts = null; paint(); }
+      else if (fd){ sync(); if (d.loading) return; d.loading = true; d.opts = null; paint(); findPosters(d.title, d.types).then(r => { d.loading = false; d.opts = r; paint(); }); }
       else if (o){ sync(); d.showNew = !d.showNew; paint(); const inp = $("#eNew"); if (inp) inp.focus(); }
     };
     const addCustom = () => {
