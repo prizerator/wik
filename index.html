@@ -492,7 +492,7 @@ async function findPosters(title, types){
         const desc = ((it.descriptions || {})[lang] || (it.descriptions || {}).en || {}).value || "";
         const poster = val("P3383");
         if (!poster && !/фильм|сериал|мульт|игр|роман|книг|повест|аниме|film|series|game|novel|book|anime|show/i.test(desc)) continue;
-        const lab = ((it.labels || {})[lang] || (it.labels || {}).en || {}).value || id;
+        let lab = ((it.labels || {})[lang] || (it.labels || {}).en || {}).value || id; if (/^Q\d+$/.test(lab)) lab = t;
         const label = lab + (desc ? " — " + desc : "");
         const sl = it.sitelinks || {};
         jobs.push((async () => {
