@@ -1,4 +1,4 @@
-const CACHE = "wiki-v8";
+const CACHE = "wiki-v9";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {

@@ -32,6 +32,13 @@
   }
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
+.lists{display:flex;gap:6px;padding:0 16px 8px;overflow-x:auto;scrollbar-width:none}
+.lists::-webkit-scrollbar{display:none}
+.lists button{flex:1;white-space:nowrap;border:0;border-radius:12px;padding:9px 10px;background:var(--surface);color:var(--muted);font-weight:600;font-size:14px;box-shadow:inset 0 0 0 1px var(--line)}
+.lists button[aria-pressed="true"]{background:var(--grad);color:#fff;box-shadow:none}
+a.tag{text-decoration:none}
+.cn.long{white-space:pre-wrap}
 html,body{height:100%;margin:0}
 body{background:var(--bg);background-image:var(--page);background-attachment:fixed;color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.35;-webkit-text-size-adjust:100%;overscroll-behavior:none}
 body.is-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
@@ -54,7 +61,7 @@ h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spaci
 .chip{flex:none;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:6px 12px;font-size:14px}
 .chip[aria-pressed="true"]{background:var(--grad);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none}
-.tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:10px 16px 6px}
+.tabs{display:grid;grid-template-columns:repeat(var(--n,2),1fr);gap:8px;padding:10px 16px 6px}
 .tab{border:0;border-radius:12px;padding:9px 6px;background:var(--surface);color:var(--muted);font-size:14px;font-weight:500;display:flex;flex-direction:column;align-items:center;gap:1px;box-shadow:inset 0 0 0 1px var(--line)}
 .tab b{font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums}
 .tab[aria-selected="true"]{box-shadow:inset 0 0 0 2px var(--c);background:var(--cbg)}
@@ -102,7 +109,7 @@ h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spaci
 .sheet h2{margin:0;font-size:17px;overflow-wrap:anywhere}
 .sheet h3{margin:6px 0 0;font-size:14px;color:var(--muted);font-weight:600;text-transform:none}
 .sheet label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
-.sheet input[type=text],.sheet textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
+.sheet input[type=text],.sheet input[type=date],.sheet textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg)}
 .sheet textarea{min-height:76px;resize:vertical}
 .sheet p{margin:0;font-size:13.5px;color:var(--muted)}
 .row{display:flex;flex-wrap:wrap;gap:6px}
@@ -123,7 +130,7 @@ h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spaci
 .status{font-size:13.5px;padding:8px 10px;border-radius:10px;background:var(--bg);overflow-wrap:anywhere}
 @media (min-width:820px){
   .tabs{display:none}
-  #board{grid-template-columns:repeat(2,1fr);gap:18px;padding-top:12px}
+  #board{grid-template-columns:repeat(var(--n,2),1fr);gap:18px;padding-top:12px}
   .col{display:flex}
   .colhead{display:flex}
   #overlay{align-items:center}
@@ -134,11 +141,12 @@ h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spaci
 <body>
 <div id="app">
   <header>
-    <h1>Книги, фильмы и тп</h1>
+    <h1>wikivazr</h1>
     <button id="syncDot" type="button" aria-label="Состояние синхронизации" data-s="off"></button>
     <button class="ghostbtn" id="sortBtn" type="button"></button>
     <button class="ghostbtn" id="setBtn" type="button" aria-label="Настройки">Ещё</button>
   </header>
+  <nav class="lists" id="lists"></nav>
   <div class="tools">
     <input id="q" type="search" placeholder="Поиск по названию и заметкам" autocomplete="off">
     <div class="chips" id="chips"></div>
@@ -164,9 +172,15 @@ const GOOGLE_CLIENT_ID = "295729212309-nbk8962qsvl155q01voacgh810kps9nb.apps.goo
 const G_SCOPE = "https://www.googleapis.com/auth/drive.file"; // только файлы, созданные самим приложением
 const FOLDER_NAME = "wikivazr";
 const FILE_NAME = "wiki-data.json";
-const STATUSES = [
-  {id:"want", label:"Посмотреть", c:"var(--want)", bg:"var(--want-bg)"},
-  {id:"done", label:"Посмотрено", c:"var(--done)", bg:"var(--done-bg)"}
+const ST_WANT = {id:"want", c:"var(--want)", bg:"var(--want-bg)"}, ST_DONE = {id:"done", c:"var(--done)", bg:"var(--done-bg)"};
+const LISTS = [
+  {id:"media", name:"Смотреть", st:[{...ST_WANT, label:"Посмотреть"}, {...ST_DONE, label:"Посмотрено"}], types:true, poster:true, rating:true,
+    now:"Сейчас смотрю / читаю", nowBadge:"сейчас", doneBtn:"✓ Готово", ph:"Добавить…", empty:"Пока пусто. Добавь запись внизу или открой «Ещё» → импорт из Notion"},
+  {id:"plans", name:"Затеи", st:[{...ST_WANT, label:"Хочу"}, {...ST_DONE, label:"Сделано"}], due:true,
+    now:"Делаю сейчас", nowBadge:"делаю", doneBtn:"✓ Сделано", ph:"Что хочу сделать…", empty:"Пока пусто. Запиши, что хочешь сделать"},
+  {id:"notes", name:"Мысли", st:[{id:"want", label:"Мысли", c:"var(--accent)", bg:"var(--bg)"}], long:true, ph:"Новая мысль…", empty:"Пока пусто. Запиши первую мысль"},
+  {id:"wishes", name:"Хотелки", st:[{...ST_WANT, label:"Хочу"}, {...ST_DONE, label:"Куплено"}], poster:true, price:true, link:true,
+    doneBtn:"✓ Куплено", ph:"Что хочу купить…", empty:"Пока пусто. Запиши, что хочешь"}
 ];
 const DEFAULT_TYPES = ["фильм","сериал","мульт","книга","игра"];
 const TYPE_COLORS = {"фильм":"#e5484d","сериал":"#3e63dd","мульт":"#12a594","книга":"#8e4ec6","игра":"#e93d82"};
@@ -182,7 +196,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmtDate = d => d ? new Date(d).toLocaleDateString("ru-RU") : "";
 const stars = n => n ? "★".repeat(n) + "☆".repeat(5-n) : "";
-const stById = id => STATUSES.find(s => s.id === id);
+const stById = id => L().st.find(s => s.id === id) || L().st[0];
 const newId = () => "i" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 function toast(msg){
@@ -197,10 +211,13 @@ let g = {clientId:"", fileId:"", signedIn:false};
 try { const v = JSON.parse(localStorage.getItem(G_KEY)); if (v && typeof v === "object") g = {clientId:v.clientId || "", fileId:v.fileId || "", signedIn:!!v.signedIn}; } catch(e) {}
 const saveG = () => { try { localStorage.setItem(G_KEY, JSON.stringify(g)); } catch(e) {} };
 const clientId = () => GOOGLE_CLIENT_ID || g.clientId;
-const ui = {tab:"want", type:"", sort:"new", q:"", addType:"фильм"};
+const L = () => LISTS.find(x => x.id === ui.list) || LISTS[0];
+const ui = {list:(() => { try { const v = localStorage.getItem("wiki-list"); return LISTS.some(x => x.id === v) ? v : "media"; } catch(e) { return "media"; } })(), tab:"want", type:"", sort:"new", q:"", addType:"фильм"};
 
 const touch = it => { it.updated = Date.now(); return it; };
 const live = () => items.filter(i => !i.deleted);
+const inList = (i, l) => (i.list || "media") === l;
+const cur = () => live().filter(i => inList(i, ui.list));
 
 function persist(){
   try { localStorage.setItem(KEY, JSON.stringify(items)); return true; }
@@ -221,15 +238,15 @@ function mergeItems(a, b){
 
 function allTypes(){
   const set = new Set(DEFAULT_TYPES);
-  live().forEach(i => i.types.forEach(t => set.add(t)));
+  live().filter(i => inList(i, "media")).forEach(i => (i.types || []).forEach(t => set.add(t)));
   return [...set];
 }
 
 function visible(status){
   const q = ui.q.trim().toLowerCase();
-  let list = live().filter(i => i.status === status);
-  if (ui.type) list = list.filter(i => i.types.includes(ui.type));
-  if (q) list = list.filter(i => (i.title + " " + i.note).toLowerCase().includes(q));
+  let list = cur().filter(i => i.status === status);
+  if (ui.type && L().types) list = list.filter(i => (i.types || []).includes(ui.type));
+  if (q) list = list.filter(i => (i.title + " " + i.note + " " + (i.price || "")).toLowerCase().includes(q));
   list.sort((a,b) => {
     if (status === "want" && !!a.now !== !!b.now) return a.now ? -1 : 1;
     const x = a.created || "", y = b.created || "";
@@ -359,35 +376,46 @@ window.addEventListener("online", syncIfStale);
 
 /* ---------- render ---------- */
 function cardHtml(i){
-  const s = stById(i.status);
-  const tags = i.types.map(t => `<span class="tag">${dot(t)}${esc(t)}</span>`).join("");
-  const note = i.note ? `<div class="cn">${esc(i.note)}</div>` : "";
-  const rating = i.status === "done" && i.rating ? `<span class="stars" aria-label="Оценка ${i.rating} из 5">${stars(i.rating)}</span>` : "";
-  const nowb = i.now && i.status === "want" ? `<span class="nowbadge"><i></i>сейчас</span>` : "";
-  const acts = i.status === "want"
-    ? `<div class="acts"><button class="act${i.now?" on":""}" type="button" data-now="${i.id}">${i.now ? "Сейчас ●" : "▶ Сейчас"}</button><button class="act ok" type="button" data-done="${i.id}">✓ Готово</button></div>` : "";
+  const c = L(), s = stById(i.status);
+  const tags = c.types ? (i.types || []).map(t => `<span class="tag">${dot(t)}${esc(t)}</span>`).join("") : "";
+  const note = i.note ? `<div class="cn${c.long ? " long" : ""}">${esc(i.note)}</div>` : "";
+  const rating = c.rating && i.status === "done" && i.rating ? `<span class="stars" aria-label="Оценка ${i.rating} из 5">${stars(i.rating)}</span>` : "";
+  const nowb = c.now && i.now && i.status === "want" ? `<span class="nowbadge"><i></i>${c.nowBadge}</span>` : "";
+  const due = c.due && i.due ? `<span class="tag">до ${fmtDate(i.due)}</span>` : "";
+  const price = c.price && i.price ? `<span class="tag">${esc(i.price)}</span>` : "";
+  const link = c.link && /^https?:\/\//i.test(i.link || "") ? `<a class="tag" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">🔗 ссылка</a>` : "";
+  const acts = i.status === "want" && (c.now || c.doneBtn)
+    ? `<div class="acts">${c.now ? `<button class="act${i.now?" on":""}" type="button" data-now="${i.id}">${i.now ? "Сейчас ●" : "▶ Сейчас"}</button>` : ""}${c.doneBtn ? `<button class="act ok" type="button" data-done="${i.id}">${c.doneBtn}</button>` : ""}</div>` : "";
   const poster = i.poster ? `<div class="poster" style="background-image:url(${i.poster})"></div>` : "";
   return `<article class="card${i.poster?" has-poster":""}" tabindex="0" role="button" data-id="${i.id}" style="--c:${s.c}">
     ${poster}<div class="cbody"><div class="ct">${esc(i.title)}</div>${note}
-    <div class="meta">${nowb}${tags}${rating}<span class="date">${fmtDate(i.created)}</span></div>${acts}</div></article>`;
+    <div class="meta">${nowb}${tags}${due}${price}${link}${rating}<span class="date">${fmtDate(i.created)}</span></div>${acts}</div></article>`;
 }
 
 function render(){
+  const c = L();
+  if (!c.st.some(x => x.id === ui.tab)) ui.tab = c.st[0].id;
+  $("#lists").innerHTML = LISTS.map(l => `<button type="button" data-list="${l.id}" aria-pressed="${ui.list===l.id}">${l.name}</button>`).join("");
   $("#sortBtn").textContent = ui.sort === "new" ? "Сначала новые" : "Сначала старые";
-  const types = allTypes();
-  $("#chips").innerHTML = `<button class="chip" type="button" data-type="" aria-pressed="${ui.type===""}">Все</button>` +
-    types.map(t => `<button class="chip" type="button" data-type="${esc(t)}" aria-pressed="${ui.type===t}">${dot(t)}${esc(t)}</button>`).join("");
-  const sel = $("#addType");
-  sel.innerHTML = `<option value="">без типа</option>` + types.map(t => `<option value="${esc(t)}"${t===ui.addType?" selected":""}>${esc(t)}</option>`).join("");
-  if (!ui.addType) sel.value = "";
-  $("#tabs").innerHTML = STATUSES.map(s => {
+  $("#chips").hidden = !c.types; $("#addType").hidden = !c.types; $("#tabs").hidden = c.st.length < 2;
+  $("#addText").placeholder = c.ph;
+  $("#board").style.setProperty("--n", c.st.length); $("#tabs").style.setProperty("--n", c.st.length);
+  if (c.types){
+    const types = allTypes();
+    $("#chips").innerHTML = `<button class="chip" type="button" data-type="" aria-pressed="${ui.type===""}">Все</button>` +
+      types.map(t => `<button class="chip" type="button" data-type="${esc(t)}" aria-pressed="${ui.type===t}">${dot(t)}${esc(t)}</button>`).join("");
+    const sel = $("#addType");
+    sel.innerHTML = `<option value="">без типа</option>` + types.map(t => `<option value="${esc(t)}"${t===ui.addType?" selected":""}>${esc(t)}</option>`).join("");
+    if (!ui.addType) sel.value = "";
+  }
+  $("#tabs").innerHTML = c.st.map(s => {
     const n = visible(s.id).length;
     return `<button class="tab" type="button" role="tab" data-tab="${s.id}" aria-selected="${ui.tab===s.id}" style="--c:${s.c};--cbg:${s.bg}"><b>${n}</b><span>${s.label}</span></button>`;
   }).join("");
-  const none = live().length === 0;
-  $("#board").innerHTML = STATUSES.map(s => {
+  const none = cur().length === 0;
+  $("#board").innerHTML = c.st.map(s => {
     const list = visible(s.id);
-    const msg = none ? "Пока пусто. Добавь запись внизу или открой «Ещё» → импорт из Notion" : "Здесь пока пусто";
+    const msg = none ? c.empty : "Здесь пока пусто";
     const body = list.length ? list.map(cardHtml).join("") : `<div class="empty">${msg}</div>`;
     return `<section class="col${ui.tab===s.id?" active":""}" data-col="${s.id}" style="--c:${s.c};--cbg:${s.bg}">
       <div class="colhead">${s.label}<i>${list.length}</i></div><div class="list">${body}</div></section>`;
@@ -396,6 +424,7 @@ function render(){
 
 /* ---------- actions ---------- */
 function markDone(it){ it.status = "done"; it.now = false; touch(it); }
+function afterDone(it){ if (L().rating) openRate(it.id); else toast("Готово"); }
 function backToWant(it){ it.status = "want"; it.rating = 0; touch(it); }
 
 function openOverlay(html){ $("#sheet").innerHTML = html; $("#overlay").classList.add("open"); }
@@ -429,23 +458,27 @@ function shrinkImage(file){
 
 function openEdit(id){
   const it = items.find(x => x.id === id); if (!it) return;
-  const d = {...it, types:[...it.types], showNew:false};
-  const sync = () => { const t = $("#eTitle"); if (t){ d.title = t.value; d.note = $("#eNote").value; } };
+  const c = L();
+  const d = {...it, types:[...(it.types || [])], showNew:false};
+  const sync = () => { const t = $("#eTitle"); if (t){ d.title = t.value; d.note = $("#eNote").value; const a = $("#eDue"); if (a) d.due = a.value; const b = $("#ePrice"); if (b) d.price = b.value; const k = $("#eLink"); if (k) d.link = k.value; } };
   const paint = () => {
     const types = [...new Set([...allTypes(), ...d.types])];
     openOverlay(`
       <h2>Запись</h2>
       <div><label for="eTitle">Название</label><input id="eTitle" type="text" value="${esc(d.title)}"></div>
-      <div><label for="eNote">Заметка</label><textarea id="eNote">${esc(d.note)}</textarea></div>
-      <div><label>Тип</label><div class="row">${types.map(t => `<button class="chip" type="button" data-t="${esc(t)}" aria-pressed="${d.types.includes(t)}">${dot(t)}${esc(t)}</button>`).join("")}<button class="chip" type="button" data-other="1">＋ другое</button></div>
-        ${d.showNew ? `<div class="row" style="margin-top:8px"><input id="eNew" type="text" placeholder="свой тип, например подкаст" style="flex:1;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg)"><button class="btn small" type="button" id="eNewOk">Добавить</button></div>` : ""}</div>
-      <div><label>Список</label><div class="seg">${STATUSES.map(s => `<button type="button" data-s="${s.id}" aria-pressed="${d.status===s.id}" style="--c:${s.c};--cbg:${s.bg}">${s.label}</button>`).join("")}</div></div>
-      ${d.status==="want" ? `<div><button class="chip" type="button" data-now="1" aria-pressed="${!!d.now}">${d.now ? "Сейчас смотрю / читаю ●" : "▶ Сейчас смотрю / читаю"}</button></div>` : ""}
-      ${d.status==="done" ? `<div><label>Оценка</label><div class="starpick">${[1,2,3,4,5].map(n => `<button type="button" data-r="${n}" class="${d.rating>=n?"on":""}" aria-label="${n}">★</button>`).join("")}</div></div>` : ""}
-      <div><label>Постер</label><div class="posterrow"><div class="thumb"${d.poster ? ` style="background-image:url(${d.poster})"` : ""}></div>
+      <div><label for="eNote">${c.long ? "Текст" : "Заметка"}</label><textarea id="eNote"${c.long ? ' style="min-height:200px"' : ""}>${esc(d.note)}</textarea></div>
+      ${c.due ? `<div><label for="eDue">Срок (необязательно)</label><input id="eDue" type="date" value="${esc(d.due || "")}"></div>` : ""}
+      ${c.price ? `<div><label for="ePrice">Цена (необязательно)</label><input id="ePrice" type="text" value="${esc(d.price || "")}" placeholder="например 1500 zł"></div>` : ""}
+      ${c.link ? `<div><label for="eLink">Ссылка (необязательно)</label><input id="eLink" type="text" value="${esc(d.link || "")}" placeholder="https://…" autocapitalize="off"></div>` : ""}
+      ${c.types ? `<div><label>Тип</label><div class="row">${types.map(t => `<button class="chip" type="button" data-t="${esc(t)}" aria-pressed="${d.types.includes(t)}">${dot(t)}${esc(t)}</button>`).join("")}<button class="chip" type="button" data-other="1">＋ другое</button></div>
+        ${d.showNew ? `<div class="row" style="margin-top:8px"><input id="eNew" type="text" placeholder="свой тип, например подкаст" style="flex:1;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg)"><button class="btn small" type="button" id="eNewOk">Добавить</button></div>` : ""}</div>` : ""}
+      ${c.st.length > 1 ? `<div><label>Список</label><div class="seg">${c.st.map(s => `<button type="button" data-s="${s.id}" aria-pressed="${d.status===s.id}" style="--c:${s.c};--cbg:${s.bg}">${s.label}</button>`).join("")}</div></div>` : ""}
+      ${c.now && d.status==="want" ? `<div><button class="chip" type="button" data-now="1" aria-pressed="${!!d.now}">${d.now ? c.now + " ●" : "▶ " + c.now}</button></div>` : ""}
+      ${c.rating && d.status==="done" ? `<div><label>Оценка</label><div class="starpick">${[1,2,3,4,5].map(n => `<button type="button" data-r="${n}" class="${d.rating>=n?"on":""}" aria-label="${n}">★</button>`).join("")}</div></div>` : ""}
+      ${c.poster ? `<div><label>${c.id==="media" ? "Постер" : "Картинка"}</label><div class="posterrow"><div class="thumb"${d.poster ? ` style="background-image:url(${d.poster})"` : ""}></div>
         <button class="btn sec small" type="button" id="ePick">${d.poster ? "Сменить" : "Добавить из галереи"}</button>
         ${d.poster ? `<button class="btn sec small" type="button" id="ePosterDel">Убрать</button>` : ""}
-        <input id="eFile" type="file" accept="image/*" hidden></div></div>
+        <input id="eFile" type="file" accept="image/*" hidden></div></div>` : ""}
       <div class="actions"><button class="btn del" type="button" id="eDel">Удалить</button><button class="btn sec" type="button" id="eCancel">Отмена</button><button class="btn" type="button" id="eSave">Сохранить</button></div>`);
     $("#sheet").onclick = e => {
       const t = e.target.closest("[data-t]"), s = e.target.closest("[data-s]"), r = e.target.closest("[data-r]"),
@@ -464,8 +497,8 @@ function openEdit(id){
     const inp = $("#eNew");
     if (inp) inp.onkeydown = e => { if (e.key === "Enter"){ e.preventDefault(); addCustom(); } };
     const ok = $("#eNewOk"); if (ok) ok.onclick = addCustom;
-    $("#ePick").onclick = () => $("#eFile").click();
-    $("#eFile").onchange = async e => {
+    const pk = $("#ePick"); if (pk) pk.onclick = () => $("#eFile").click();
+    const ef = $("#eFile"); if (ef) ef.onchange = async e => {
       const f = e.target.files && e.target.files[0]; if (!f) return;
       try { sync(); d.poster = await shrinkImage(f); paint(); } catch(err) { toast("Не получилось открыть картинку"); }
     };
@@ -474,7 +507,7 @@ function openEdit(id){
     $("#eSave").onclick = () => {
       sync();
       if (!d.title.trim()){ $("#eTitle").focus(); return; }
-      Object.assign(it, {title:d.title.trim(), note:d.note.trim(), types:d.types, status:d.status, now:d.status==="want" ? !!d.now : false, rating:d.status==="done" ? d.rating : 0, poster:d.poster});
+      Object.assign(it, {title:d.title.trim(), note:d.note.trim(), types:d.types, status:d.status, now:c.now && d.status==="want" ? !!d.now : false, rating:c.rating && d.status==="done" ? d.rating : 0, poster:d.poster || "", due:c.due ? (d.due || "") : "", price:c.price ? (d.price || "").trim() : "", link:c.link ? (d.link || "").trim() : ""});
       touch(it); save(); closeOverlay();
     };
     const del = $("#eDel");
@@ -510,7 +543,7 @@ function importCSV(text){
   const col = (...names) => head.findIndex(h => names.includes(h));
   const iT = col("название","name","title"), iD = col("date","дата"), iN = col("пометки","заметки","notes"), iS = col("статус","status"), iY = col("тип","type");
   if (iT < 0) return {added:0, skipped:0, error:"Не нашёл колонку «Название»"};
-  const have = new Set(live().map(i => i.title.trim().toLowerCase()));
+  const have = new Set(live().filter(i => inList(i, "media")).map(i => i.title.trim().toLowerCase()));
   let added = 0, skipped = 0;
   for (const r of rows.slice(1)){
     const title = (r[iT] || "").trim(); if (!title) continue;
@@ -520,7 +553,7 @@ function importCSV(text){
     const doing = st === "in progress" || st === "в процессе";
     let created = new Date().toISOString();
     if (iD >= 0 && r[iD]){ const t = Date.parse(r[iD]); if (!isNaN(t)) created = new Date(t).toISOString(); }
-    const it = {id:newId(), title, note:(iN >= 0 ? r[iN] : "").trim(), status:done ? "done" : "want", now:doing, poster:"",
+    const it = {id:newId(), list:"media", title, note:(iN >= 0 ? r[iN] : "").trim(), status:done ? "done" : "want", now:doing, poster:"",
       types:(iY >= 0 ? r[iY] : "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean), created, rating:0};
     touch(it); items.push(it); have.add(title.toLowerCase()); added++;
   }
@@ -610,12 +643,13 @@ function endDrag(){
 function applyDrop(id, t){
   const it = items.find(x => x.id === id); if (!it || !t) return;
   if (t.kind === "type"){
+    it.types = it.types || [];
     if (it.types.includes(t.value)){ toast("Уже: " + t.value); return; }
     it.types.push(t.value); touch(it); toast("Добавлен тип: " + t.value);
   } else if (t.kind === "status"){
     if (it.status === t.value) return;
-    if (t.value === "done"){ markDone(it); save(); render(); openRate(it.id); return; }
-    backToWant(it); toast("Вернул в «Посмотреть»");
+    if (t.value === "done"){ markDone(it); save(); render(); afterDone(it); return; }
+    backToWant(it); toast("Вернул в «" + L().st[0].label + "»");
   }
   save(); render();
 }
@@ -623,7 +657,7 @@ function applyDrop(id, t){
 $("#board").addEventListener("pointerdown", e => {
   if (e.pointerType === "mouse" && e.button !== 0) return;
   const card = e.target.closest(".card");
-  if (!card || e.target.closest("button")) return;
+  if (!card || e.target.closest("button, a")) return;
   drag = {id:card.dataset.id, card, x:e.clientX, y:e.clientY, pid:e.pointerId, ptype:e.pointerType, started:false};
   if (e.pointerType !== "mouse") drag.timer = setTimeout(beginDrag, 380);
 });
@@ -658,6 +692,12 @@ $("#board").addEventListener("contextmenu", e => { if (e.target.closest(".card")
 /* ---------- other events ---------- */
 $("#overlay").addEventListener("click", e => { if (e.target.id === "overlay") closeOverlay(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#overlay").classList.contains("open")) closeOverlay(); });
+$("#lists").addEventListener("click", e => {
+  const b = e.target.closest("[data-list]"); if (!b) return;
+  ui.list = b.dataset.list; ui.tab = "want"; ui.type = ""; ui.q = ""; $("#q").value = "";
+  try { localStorage.setItem("wiki-list", ui.list); } catch(err) {}
+  render();
+});
 $("#chips").addEventListener("click", e => {
   const b = e.target.closest("[data-type]"); if (!b) return;
   ui.type = b.dataset.type; render();
@@ -668,10 +708,11 @@ $("#tabs").addEventListener("click", e => {
 });
 $("#board").addEventListener("click", e => {
   if (Date.now() - lastDragEnd < 450) return;
+  if (e.target.closest("a")) return;
   const nb = e.target.closest("[data-now]");
   if (nb){ const it = items.find(x => x.id === nb.dataset.now); if (it){ it.now = !it.now; touch(it); save(); render(); toast(it.now ? "Отмечено: сейчас" : "Снято"); } return; }
   const db = e.target.closest("[data-done]");
-  if (db){ const it = items.find(x => x.id === db.dataset.done); if (it){ markDone(it); save(); render(); openRate(it.id); } return; }
+  if (db){ const it = items.find(x => x.id === db.dataset.done); if (it){ markDone(it); save(); render(); afterDone(it); } return; }
   const c = e.target.closest("[data-id]"); if (c) openEdit(c.dataset.id);
 });
 $("#board").addEventListener("keydown", e => {
@@ -684,15 +725,15 @@ $("#setBtn").addEventListener("click", openSettings);
 $("#syncDot").addEventListener("click", () => { if ($("#syncDot").dataset.s === "auth") doSync(true); else openSettings(); });
 $("#addType").addEventListener("change", e => { ui.addType = e.target.value; });
 
-function addItem(title, note, type){
-  const it = {id:newId(), title, note:note || "", status:"want", now:false, poster:"", types:type ? [type] : [], created:new Date().toISOString(), rating:0};
+function addItem(title, note, type, list){
+  const it = {id:newId(), list:list || ui.list, title, note:note || "", status:"want", now:false, poster:"", types:type ? [type] : [], created:new Date().toISOString(), rating:0};
   touch(it); items.push(it); save();
 }
 $("#addbar").addEventListener("submit", e => {
   e.preventDefault();
   const inp = $("#addText"), v = inp.value.trim(); if (!v) return;
-  addItem(v, "", ui.addType);
-  inp.value = ""; ui.tab = "want"; ui.q = ""; $("#q").value = ""; render();
+  addItem(v, "", L().types ? ui.addType : "");
+  inp.value = ""; ui.tab = L().st[0].id; ui.q = ""; $("#q").value = ""; render();
   const list = document.querySelector(".col.active .list"); if (list) list.scrollTop = 0;
 });
 
@@ -704,7 +745,7 @@ $("#addbar").addEventListener("submit", e => {
   const link = url || (/^https?:\/\//i.test(text) ? text : "");
   const name = title || (text && text !== link ? text : "") || link;
   const note = link && name !== link ? link : "";
-  addItem(name.slice(0, 200), note, "");
+  addItem(name.slice(0, 200), note, "", "media");
   try { history.replaceState(null, "", location.pathname); } catch(e) {}
   setTimeout(() => toast("Добавлено из «Поделиться»"), 400);
 })();
