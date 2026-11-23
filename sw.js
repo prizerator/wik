@@ -1,4 +1,4 @@
-const CACHE = "wiki-v15";
+const CACHE = "wiki-v16";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {
@@ -21,7 +21,7 @@ self.addEventListener("fetch", e => {
   if (url.origin !== location.origin) return;
   e.respondWith(
     caches.match(req, {ignoreSearch: true}).then(cached => {
-      const fresh = fetch(req).then(res => {
+      const fresh = fetch(req, {cache:"no-cache"}).then(res => {
         if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req.url.split("?")[0], copy)); }
         return res;
       }).catch(() => cached);
