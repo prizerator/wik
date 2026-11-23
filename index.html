@@ -335,7 +335,7 @@ async function doSync(interactive){
     }
     render();
     const t = new Date().toLocaleTimeString("ru-RU", {hour:"2-digit", minute:"2-digit"});
-    setSync("ok", "Синхронизировано в " + t); needGesture = false;
+    setSync("ok", "Синхронизировано в " + t); needGesture = false; lastSync = Date.now(); tapRetry = 1;
   } catch(e) {
     if (e.message === "auth"){ needGesture = true; setSync("auth", "Нужно войти, нажми на кружок"); }
     else setSync("err", e.message === "Failed to fetch" ? "Не удалось связаться с Google" : e.message);
@@ -346,10 +346,12 @@ async function doSync(interactive){
 }
 // Заранее грузим скрипт входа Google, чтобы окно входа открывалось сразу по нажатию (иначе браузер его блокирует).
 if (clientId()) loadGIS().catch(() => {});
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") doSync(false); });
-window.addEventListener("online", () => doSync(false));
+let lastSync = 0, tapRetry = 1;
+const syncIfStale = () => { if (Date.now() - lastSync > 5 * 60000) doSync(false); };
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncIfStale(); });
+window.addEventListener("online", syncIfStale);
 // Если тихий вход не удался (браузер блокирует окно без нажатия), пробуем ещё раз при первом касании.
-document.addEventListener("pointerdown", () => { if (needGesture && g.signedIn && !tokenValid()){ needGesture = false; doSync(false); } }, true);
+document.addEventListener("pointerdown", () => { if (needGesture && tapRetry > 0 && g.signedIn && !tokenValid()){ tapRetry--; needGesture = false; doSync(false); } }, true);
 
 /* ---------- render ---------- */
 function cardHtml(i){

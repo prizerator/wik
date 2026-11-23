@@ -1,4 +1,4 @@
-const CACHE = "wiki-v2";
+const CACHE = "wiki-v3";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {
