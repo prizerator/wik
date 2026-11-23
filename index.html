@@ -538,26 +538,35 @@ function parseCSV(text){
 }
 function importCSV(text){
   const rows = parseCSV(text);
-  if (rows.length < 2) return {added:0, skipped:0, error:"В файле нет строк"};
+  if (rows.length < 2) return {added:0, updated:0, error:"В файле нет строк"};
   const head = rows[0].map(h => h.trim().toLowerCase());
   const col = (...names) => head.findIndex(h => names.includes(h));
   const iT = col("название","name","title"), iD = col("date","дата"), iN = col("пометки","заметки","notes"), iS = col("статус","status"), iY = col("тип","type");
-  if (iT < 0) return {added:0, skipped:0, error:"Не нашёл колонку «Название»"};
-  const have = new Set(live().filter(i => inList(i, "media")).map(i => i.title.trim().toLowerCase()));
-  let added = 0, skipped = 0;
+  if (iT < 0) return {added:0, updated:0, error:"Не нашёл колонку «Название»"};
+  const byTitle = new Map();
+  live().filter(i => inList(i, "media")).forEach(i => byTitle.set(i.title.trim().toLowerCase(), i));
+  let added = 0, updated = 0;
   for (const r of rows.slice(1)){
     const title = (r[iT] || "").trim(); if (!title) continue;
-    if (have.has(title.toLowerCase())){ skipped++; continue; }
     const st = (iS >= 0 ? r[iS] : "").trim().toLowerCase();
     const done = st === "done" || st === "готово";
     const doing = st === "in progress" || st === "в процессе";
-    let created = new Date().toISOString();
-    if (iD >= 0 && r[iD]){ const t = Date.parse(r[iD]); if (!isNaN(t)) created = new Date(t).toISOString(); }
-    const it = {id:newId(), list:"media", title, note:(iN >= 0 ? r[iN] : "").trim(), status:done ? "done" : "want", now:doing, poster:"",
-      types:(iY >= 0 ? r[iY] : "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean), created, rating:0};
-    touch(it); items.push(it); have.add(title.toLowerCase()); added++;
+    let created = ""; if (iD >= 0 && r[iD]){ const t = Date.parse(r[iD]); if (!isNaN(t)) created = new Date(t).toISOString(); }
+    const types = (iY >= 0 ? r[iY] : "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean);
+    const note = (iN >= 0 ? r[iN] : "").trim();
+    const have = byTitle.get(title.toLowerCase());
+    if (have){
+      // запись уже есть: обновляю статус и дату из файла, остальное (постер, оценка, правки) не трогаю
+      if (iS >= 0){ have.status = done ? "done" : "want"; have.now = doing; if (!done) have.rating = 0; }
+      if (created) have.created = created;
+      if (types.length && !(have.types || []).length) have.types = types;
+      if (note && !have.note) have.note = note;
+      touch(have); updated++; continue;
+    }
+    const it = {id:newId(), list:"media", title, note, status:done ? "done" : "want", now:doing, poster:"", types, created:created || new Date().toISOString(), rating:0};
+    touch(it); items.push(it); byTitle.set(title.toLowerCase(), it); added++;
   }
-  return {added, skipped};
+  return {added, updated};
 }
 
 /* ---------- settings ---------- */
@@ -577,7 +586,7 @@ function openSettings(){
     <div class="actions"><button class="btn" type="button" id="gIn">${g.signedIn ? "Синхронизировать сейчас" : "Войти в Google"}</button></div>
     ${g.signedIn ? `<div class="actions"><button class="btn sec" type="button" id="gOut">Выйти из Google</button></div>` : ""}
     <h3>Импорт из Notion</h3>
-    <p>Выгрузи базу из Notion в CSV и выбери файл. Записи, которые уже есть (по названию), пропускаются.</p>
+    <p>Выгрузи базу из Notion в CSV и выбери файл. Записи, которые уже есть (по названию), обновляются: статус и дата берутся из файла.</p>
     <div class="actions"><button class="btn sec" type="button" id="cImp">Выбрать CSV</button><input id="cFile" type="file" accept=".csv,text/csv" hidden></div>
     ${installEvt ? `<h3>Приложение</h3><div class="actions"><button class="btn sec" type="button" id="cInst">Установить на экран</button></div>` : ""}
     <div class="actions"><button class="btn sec" type="button" id="cClose">Закрыть</button></div>`);
@@ -596,7 +605,7 @@ function openSettings(){
     const f = e.target.files && e.target.files[0]; if (!f) return;
     const r = importCSV(await f.text());
     if (r.error){ toast(r.error); return; }
-    save(); closeOverlay(); toast(`Добавлено: ${r.added}, пропущено: ${r.skipped}`);
+    save(); closeOverlay(); toast(`Добавлено: ${r.added}, обновлено: ${r.updated}`);
   };
   const ib = $("#cInst"); if (ib) ib.onclick = async () => { installEvt.prompt(); installEvt = null; closeOverlay(); };
   $("#cClose").onclick = closeOverlay;
