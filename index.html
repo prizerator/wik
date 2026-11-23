@@ -156,7 +156,7 @@ const KEY = "wiki-v1";
 const G_KEY = "wiki-google";
 // Публичный идентификатор приложения Google (Client ID). Это не секрет, пароля у приложения нет.
 // Вставляется один раз при настройке, имеет вид 123456-abc.apps.googleusercontent.com
-const GOOGLE_CLIENT_ID = "";
+const GOOGLE_CLIENT_ID = "295729212309-nbk8962qsvl155q01voacgh810kps9nb.apps.googleusercontent.com";
 const G_SCOPE = "https://www.googleapis.com/auth/drive.file"; // только файлы, созданные самим приложением
 const FOLDER_NAME = "Мини-вики";
 const FILE_NAME = "wiki-data.json";
@@ -316,6 +316,7 @@ async function ensureFile(tk){
 }
 const byId = a => [...a].sort((x, y) => x.id < y.id ? -1 : 1);
 async function doSync(interactive){
+  if (interactive && !(window.google && google.accounts && google.accounts.oauth2)){ setSync("busy", "Загружаю вход Google…"); try { await loadGIS(); } catch(e){ setSync("err", e.message); return; } setSync("auth", "Нажми «Войти в Google» ещё раз"); return; }
   if (!clientId()){ setSync("off", "Нужен Client ID Google (настройка)"); return; }
   if (!g.signedIn && !interactive){ setSync("off", "Войди в Google, чтобы синхронизировать"); return; }
   if (!navigator.onLine){ setSync("err", "Нет сети, синхронизирую позже"); return; }
@@ -343,6 +344,8 @@ async function doSync(interactive){
     if (syncAgain){ syncAgain = false; scheduleSync(); }
   }
 }
+// Заранее грузим скрипт входа Google, чтобы окно входа открывалось сразу по нажатию (иначе браузер его блокирует).
+if (clientId()) loadGIS().catch(() => {});
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") doSync(false); });
 window.addEventListener("online", () => doSync(false));
 // Если тихий вход не удался (браузер блокирует окно без нажатия), пробуем ещё раз при первом касании.
