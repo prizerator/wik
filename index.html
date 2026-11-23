@@ -465,25 +465,48 @@ function shrinkImage(file){
 async function findPosters(title, types){
   const t = (title || "").trim(); if (!t) return [];
   const tp = types || [], isBook = tp.includes("книга");
+  const lead = async (w, title) => {
+    // первая картинка статьи, загруженная локально в Википедию (постеры и обложки несвободные, фото людей лежат в общем хранилище)
+    const base = `https://${w}.wikipedia.org/w/api.php?format=json&origin=*&`;
+    const r = await (await fetch(base + `action=query&redirects=1&prop=images&imlimit=30&titles=${encodeURIComponent(title)}`)).json();
+    const pg = Object.values((r.query || {}).pages || {})[0]; if (!pg || !pg.images) return null;
+    const files = pg.images.map(x => x.title).filter(n => /\.(jpe?g|png|webp)$/i.test(n)).slice(0, 25);
+    if (!files.length) return null;
+    const ii = await (await fetch(base + `action=query&prop=imageinfo&iiprop=url&iiurlwidth=300&titles=${encodeURIComponent(files.join("|"))}`)).json();
+    const infos = Object.values((ii.query || {}).pages || {}).filter(x => x.imagerepository === "local" && x.imageinfo && x.imageinfo[0]);
+    infos.sort((x, y) => files.indexOf(x.title) - files.indexOf(y.title));
+    return infos.length ? infos[0].imageinfo[0].thumburl : null;
+  };
   const wd = async (lang) => {
     try {
       const api = "https://www.wikidata.org/w/api.php?format=json&origin=*&";
       const sr = await (await fetch(api + `action=wbsearchentities&type=item&limit=10&language=${lang}&uselang=${lang}&search=${encodeURIComponent(t)}`)).json();
       const ids = (sr.search || []).map(x => x.id); if (!ids.length) return [];
-      const en = await (await fetch(api + `action=wbgetentities&props=claims|labels|descriptions&languages=${lang}|en&ids=${ids.join("|")}`)).json();
-      const out = [];
+      const en = await (await fetch(api + `action=wbgetentities&props=claims|labels|descriptions|sitelinks&sitefilter=ruwiki|enwiki&languages=${lang}|en&ids=${ids.join("|")}`)).json();
+      const jobs = [];
       for (const id of ids){
         const it = (en.entities || {})[id]; if (!it) continue;
         const cl = it.claims || {};
         const val = pid => { const c = (cl[pid] || [])[0]; return c && c.mainsnak && c.mainsnak.datavalue ? c.mainsnak.datavalue.value : null; };
         if ((cl.P31 || []).some(c => c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value && c.mainsnak.datavalue.value.id === "Q5")) continue; // люди
-        const lab = ((it.labels || {})[lang] || (it.labels || {}).en || {}).value || id;
         const desc = ((it.descriptions || {})[lang] || (it.descriptions || {}).en || {}).value || "";
-        let f = val("P3383"); // постер фильма
-        if (!f && /фильм|сериал|мульт|игр|роман|книг|повест|film|series|game|novel|book/i.test(desc)) f = val("P18");
-        if (typeof f === "string") out.push({url:"https://commons.wikimedia.org/wiki/Special:FilePath/" + encodeURIComponent(f) + "?width=300", label:lab + (desc ? " — " + desc : "")});
+        const poster = val("P3383");
+        if (!poster && !/фильм|сериал|мульт|игр|роман|книг|повест|аниме|film|series|game|novel|book|anime|show/i.test(desc)) continue;
+        const lab = ((it.labels || {})[lang] || (it.labels || {}).en || {}).value || id;
+        const label = lab + (desc ? " — " + desc : "");
+        const sl = it.sitelinks || {};
+        jobs.push((async () => {
+          try {
+            if (typeof poster === "string") return {url:"https://commons.wikimedia.org/wiki/Special:FilePath/" + encodeURIComponent(poster) + "?width=300", label};
+            let u = null;
+            if (sl.ruwiki) u = await lead("ru", sl.ruwiki.title);
+            if (!u && sl.enwiki) u = await lead("en", sl.enwiki.title);
+            return u ? {url:u, label} : null;
+          } catch(e) { return null; }
+        })());
+        if (jobs.length >= 6) break;
       }
-      return out;
+      return (await Promise.all(jobs)).filter(Boolean);
     } catch(e) { return []; }
   };
   const ol = async () => {
