@@ -465,12 +465,25 @@ function shrinkImage(file){
 async function findPosters(title, types){
   const t = (title || "").trim(); if (!t) return [];
   const tp = types || [], isBook = tp.includes("книга");
-  const word = tp.includes("сериал") ? "сериал" : tp.includes("мульт") ? "мультфильм" : tp.includes("игра") ? "игра" : isBook ? "книга" : "фильм";
-  const wiki = async (lang, q) => {
+  const wd = async (lang) => {
     try {
-      const r = await fetch(`https://${lang}.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=8&prop=pageimages&piprop=thumbnail&pithumbsize=300&format=json&origin=*`);
-      const j = await r.json();
-      return Object.values((j.query || {}).pages || {}).sort((a, b) => a.index - b.index).filter(p => p.thumbnail).map(p => ({url:p.thumbnail.source, label:p.title}));
+      const api = "https://www.wikidata.org/w/api.php?format=json&origin=*&";
+      const sr = await (await fetch(api + `action=wbsearchentities&type=item&limit=10&language=${lang}&uselang=${lang}&search=${encodeURIComponent(t)}`)).json();
+      const ids = (sr.search || []).map(x => x.id); if (!ids.length) return [];
+      const en = await (await fetch(api + `action=wbgetentities&props=claims|labels|descriptions&languages=${lang}|en&ids=${ids.join("|")}`)).json();
+      const out = [];
+      for (const id of ids){
+        const it = (en.entities || {})[id]; if (!it) continue;
+        const cl = it.claims || {};
+        const val = pid => { const c = (cl[pid] || [])[0]; return c && c.mainsnak && c.mainsnak.datavalue ? c.mainsnak.datavalue.value : null; };
+        if ((cl.P31 || []).some(c => c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value && c.mainsnak.datavalue.value.id === "Q5")) continue; // люди
+        const lab = ((it.labels || {})[lang] || (it.labels || {}).en || {}).value || id;
+        const desc = ((it.descriptions || {})[lang] || (it.descriptions || {}).en || {}).value || "";
+        let f = val("P3383"); // постер фильма
+        if (!f && /фильм|сериал|мульт|игр|роман|книг|повест|film|series|game|novel|book/i.test(desc)) f = val("P18");
+        if (typeof f === "string") out.push({url:"https://commons.wikimedia.org/wiki/Special:FilePath/" + encodeURIComponent(f) + "?width=300", label:lab + (desc ? " — " + desc : "")});
+      }
+      return out;
     } catch(e) { return []; }
   };
   const ol = async () => {
@@ -480,7 +493,7 @@ async function findPosters(title, types){
       return (j.docs || []).filter(d => d.cover_i).map(d => ({url:`https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg`, label:d.title}));
     } catch(e) { return []; }
   };
-  const parts = await Promise.all(isBook ? [ol(), wiki("ru", t + " " + word)] : [wiki("ru", t + " " + word), wiki("en", t)]);
+  const parts = await Promise.all(isBook ? [ol(), wd("ru"), wd("en")] : [wd("ru"), wd("en")]);
   const seen = new Set(), out = [];
   parts.flat().forEach(x => { if (/^https:\/\//.test(x.url) && !seen.has(x.url)){ seen.add(x.url); out.push(x); } });
   return out.slice(0, 9);
@@ -510,7 +523,7 @@ function openEdit(id){
         ${d.poster ? `<button class="btn sec small" type="button" id="ePosterDel">Убрать</button>` : ""}
         <input id="eFile" type="file" accept="image/*" hidden></div>
         ${c.id === "media" ? `<div style="margin-top:8px"><button class="btn sec small" type="button" data-find="1">${d.loading ? "Ищу…" : "Найти постер"}</button></div>` : ""}
-        ${d.opts ? (d.opts.length ? `<div class="pgrid">${d.opts.map((o, k) => `<button type="button" class="pcell" data-pu="${k}" aria-label="${esc(o.label)}" style="background-image:url('${cssUrl(o.url)}')"></button>`).join("")}</div><p>Нажми на картинку, чтобы выбрать</p>` : `<p>Ничего не нашлось. Можно добавить из галереи.</p>`) : ""}</div>` : ""}
+        ${d.opts ? (d.opts.length ? `<div class="pgrid">${d.opts.map((o, k) => `<button type="button" class="pcell" data-pu="${k}" aria-label="${esc(o.label)}" title="${esc(o.label)}" style="background-image:url('${cssUrl(o.url)}')"></button>`).join("")}</div><p>Нажми на картинку, чтобы выбрать</p>` : `<p>Ничего не нашлось. Можно добавить из галереи.</p>`) : ""}</div>` : ""}
       <div class="actions"><button class="btn del" type="button" id="eDel">Удалить</button><button class="btn sec" type="button" id="eCancel">Отмена</button><button class="btn" type="button" id="eSave">Сохранить</button></div>`);
     $("#sheet").onclick = e => {
       const t = e.target.closest("[data-t]"), s = e.target.closest("[data-s]"), r = e.target.closest("[data-r]"),
