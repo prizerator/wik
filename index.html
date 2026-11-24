@@ -220,6 +220,7 @@ header.searching h1{display:none}
   <nav class="tabs" id="tabs" role="tablist"></nav>
   <main id="board"></main>
   <div id="health" hidden></div>
+  <div id="receipts" hidden></div>
   <form id="addbar" autocomplete="off">
     <select id="addType" aria-label="Тип"></select>
     <input id="addText" type="text" placeholder="Добавить…" enterkeyhint="done">
@@ -248,7 +249,8 @@ const LISTS = [
   {id:"notes", name:"Мысли", st:[{id:"want", label:"Мысли", c:"var(--accent)", bg:"var(--bg)"}], long:true, tiles:true, ph:"Новая мысль…", empty:"Пока пусто. Запиши первую мысль"},
   {id:"wishes", name:"Хотелки", st:[{...ST_WANT, label:"Хочу"}, {...ST_DONE, label:"Куплено"}], poster:true, price:true, link:true, side:true,
     doneBtn:"✓ Куплено", ph:"Что хочу купить…", empty:"Пока пусто. Запиши, что хочешь"},
-  {id:"health", name:"Здоровье", view:"health", st:[{id:"want", label:"Здоровье", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: название, показатель, клиника…", empty:""}
+  {id:"health", name:"Здоровье", view:"health", st:[{id:"want", label:"Здоровье", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: название, показатель, клиника…", empty:""},
+  {id:"receipts", name:"Чеки", view:"receipts", st:[{id:"want", label:"Чеки", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: что куплено, магазин, дата…", empty:""}
 ];
 const DEFAULT_TYPES = ["фильм","сериал","мульт","книга","игра"];
 const TYPE_COLORS = {"фильм":"#e5484d","сериал":"#3e63dd","мульт":"#12a594","книга":"#8e4ec6","игра":"#e93d82"};
@@ -484,15 +486,22 @@ function renderSearch(q){
     total += hd.length;
     html += `<section class="col active" style="--c:var(--accent);--cbg:var(--bg)"><div class="colhead show">Здоровье<i>${hd.length}</i></div><div class="list">` + hd.map(d => `<article class="card" tabindex="0" role="button" data-health="${esc(d.id)}" style="--c:var(--accent)"><div class="cbody"><div class="ct">${esc(d.title)}</div><div class="meta"><span class="tag">${esc(d.cat || "")}</span><span class="date">${esc((d.date || "").split("-").reverse().join("."))}</span></div></div></article>`).join("") + `</div></section>`;
   }
+  let rd = []; try { const v = JSON.parse(localStorage.getItem("wiki-receipts")); rd = v && Array.isArray(v.docs) ? v.docs.filter(d => !d.deleted && hit([d.title, d.store, d.note, d.price, d.date].join(" "))) : []; } catch(e) {}
+  if (rd.length){
+    total += rd.length;
+    html += `<section class="col active" style="--c:var(--accent);--cbg:var(--bg)"><div class="colhead show">Чеки<i>${rd.length}</i></div><div class="list">` + rd.map(d => `<article class="card" tabindex="0" role="button" data-receipt="${esc(d.id)}" style="--c:var(--accent)"><div class="cbody"><div class="ct">${esc(d.title)}</div><div class="meta"><span class="tag">${esc(d.store || "чек")}</span><span class="date">${esc((d.date || "").split("-").reverse().join("."))}</span></div></div></article>`).join("") + `</div></section>`;
+  }
   b.innerHTML = total ? html : `<div class="empty">Ничего не нашлось</div>`;
 }
 function vt(fn){ if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches){ try { document.startViewTransition(fn); return; } catch(e) {} } fn(); }
 function enter(el){ if (!el) return; el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter"); clearTimeout(el._en); el._en = setTimeout(() => el.classList.remove("enter"), 900); }
-function loadHealth(){
-  if (window.Health){ Health.render(); return; }
-  if (loadHealth.s) return; loadHealth.s = true;
-  const el = document.createElement("script"); el.src = "health.js";
-  el.onerror = () => { loadHealth.s = false; toast("Не удалось загрузить раздел «Здоровье»"); };
+const VIEWS = {health:{obj:"Health", file:"health.js", name:"Здоровье"}, receipts:{obj:"Receipts", file:"receipts.js", name:"Чеки"}};
+function loadView(v){
+  const m = VIEWS[v]; if (!m) return;
+  if (window[m.obj]){ window[m.obj].render(); return; }
+  if (m.loading) return; m.loading = true;
+  const el = document.createElement("script"); el.src = m.file;
+  el.onerror = () => { m.loading = false; toast("Не удалось загрузить раздел «" + m.name + "»"); };
   document.head.appendChild(el);
 }
 function render(){
@@ -500,13 +509,13 @@ function render(){
   if (!c.st.some(x => x.id === ui.tab)) ui.tab = c.st[0].id;
   $("#lists").innerHTML = LISTS.map(l => `<button type="button" data-list="${l.id}" aria-pressed="${ui.list===l.id}"${ui.list===l.id ? ' style="view-transition-name:navsel"' : ""}>${l.name}</button>`).join("");
   $("#sortBtn").textContent = ui.sort === "new" ? "Сначала новые" : "Сначала старые";
-  const hv = c.view === "health";
+  const hv = !!c.view;
   document.body.classList.toggle("light", hv);
   const sq = !hv && ui.q.trim();
-  $("#health").hidden = !hv; $("#board").hidden = hv; $("#addbar").hidden = hv || !!sq; $("#sortBtn").classList.toggle("collapsed", hv); $("#sortBtn").tabIndex = hv ? -1 : 0;
+  $("#health").hidden = c.view !== "health"; $("#receipts").hidden = c.view !== "receipts"; $("#board").hidden = hv; $("#addbar").hidden = hv || !!sq; $("#sortBtn").classList.toggle("collapsed", hv); $("#sortBtn").tabIndex = hv ? -1 : 0;
   delete $("#board").dataset.search;
   $("#q").placeholder = hv ? c.ph : "Поиск по названию и заметкам";
-  if (hv){ $("#chips").hidden = true; $("#tabs").hidden = true; loadHealth(); return; }
+  if (hv){ $("#chips").hidden = true; $("#tabs").hidden = true; loadView(c.view); return; }
   if (sq){ renderSearch(sq); return; }
   $("#chips").hidden = !c.types; $("#addType").hidden = !c.types; $("#tabs").hidden = c.st.length < 2;
   $("#addText").placeholder = c.ph;
@@ -773,7 +782,7 @@ function openSettings(){
   const go = $("#gOut");
   if (go) go.onclick = () => {
     try { if (token && window.google) google.accounts.oauth2.revoke(token, () => {}); } catch(e) {}
-    token = null; try { localStorage.removeItem("wiki-tok"); localStorage.removeItem("wiki-health"); localStorage.removeItem("wiki-health-g"); } catch(e) {} g.signedIn = false; g.fileId = ""; saveG(); setSync("off", "Вышел из Google"); closeOverlay();
+    token = null; try { localStorage.removeItem("wiki-tok"); localStorage.removeItem("wiki-health"); localStorage.removeItem("wiki-health-g"); localStorage.removeItem("wiki-receipts"); localStorage.removeItem("wiki-receipts-g"); } catch(e) {} g.signedIn = false; g.fileId = ""; saveG(); setSync("off", "Вышел из Google"); closeOverlay();
   };
   $("#cImp").onclick = () => $("#cFile").click();
   $("#cFile").onchange = async e => {
@@ -880,8 +889,9 @@ $("#lists").addEventListener("click", e => {
   const b = e.target.closest("[data-list]"); if (!b) return;
   ui.list = b.dataset.list; ui.tab = "want"; ui.type = ""; ui.q = ""; $("#q").value = ""; $("#q").hidden = true; $("#searchBtn").classList.remove("on"); document.querySelector("header").classList.remove("searching");
   try { localStorage.setItem("wiki-list", ui.list); } catch(err) {}
-  vt(() => { render(); enter($("#board")); enter($("#health")); });
-  if (ui.list === "health" && window.Health) Health.open();
+  vt(() => { render(); enter($("#board")); enter($("#health")); enter($("#receipts")); });
+  const vm = VIEWS[ui.list]; if (vm && window[vm.obj]) window[vm.obj].open();
+  const pb = $("#lists [aria-pressed=true]"); if (pb && pb.scrollIntoView) pb.scrollIntoView({inline:"center", block:"nearest", behavior:"smooth"});
 });
 $("#chips").addEventListener("click", e => {
   const b = e.target.closest("[data-type]"); if (!b) return;
@@ -900,6 +910,8 @@ $("#board").addEventListener("click", e => {
   if (db){ const it = items.find(x => x.id === db.dataset.done); if (it){ markDone(it); save(); render(); afterDone(it); } return; }
   const dr = e.target.closest("[data-drop]");
   if (dr){ const it = items.find(x => x.id === dr.dataset.drop); if (it){ it.deleted = true; touch(it); save(); render(); toast("Убрано: " + it.title); } return; }
+  const rc = e.target.closest("[data-receipt]");
+  if (rc){ ui.list = "receipts"; try { localStorage.setItem("wiki-list", ui.list); } catch(err) {} render(); return; }
   const hh = e.target.closest("[data-health]");
   if (hh){ ui.list = "health"; try { localStorage.setItem("wiki-list", ui.list); } catch(err) {} render(); return; }
   const c = e.target.closest("[data-id]"); if (c){ const it = items.find(x => x.id === c.dataset.id); if (it && ui.list !== (it.list || "media")) ui.list = it.list || "media"; openEdit(c.dataset.id); }
@@ -951,7 +963,7 @@ let lastRefresh = 0;
 document.addEventListener("pointerdown", e => {
   if (!g.signedIn || tokenValid() || Date.now() - lastRefresh < 600000 || e.target.closest("#syncDot")) return;
   lastRefresh = Date.now();
-  getToken(true, true).then(() => { doSync(false); if (window.Health) Health.sync(); }).catch(() => {});
+  getToken(true, true).then(() => { doSync(false); if (window.Health) Health.sync(); if (window.Receipts) Receipts.sync(); }).catch(() => {});
 }, true);
 
 if ("serviceWorker" in navigator){

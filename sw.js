@@ -1,5 +1,5 @@
-const CACHE = "wiki-v27";
-const FILES = ["./", "index.html","health.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
+const CACHE = "wiki-v29";
+const FILES = ["./", "index.html","health.js","receipts.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(FILES.map(f => fetch(new Request(f, {cache:"reload"})).then(r => { if (!r.ok) throw new Error(f); return c.put(f, r); })))).then(() => self.skipWaiting()));
