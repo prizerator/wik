@@ -51,20 +51,22 @@ css.textContent = `
 .hv th,.hv td{border:1px solid var(--line);padding:3px 7px;text-align:left}
 .hv th{background:var(--bg)}
 .hv tr.H td{background:var(--want-bg)}
-.hv tr.L td{background:#e6eeff}
+.hv tr.L td{background:var(--low-bg,#e6eeff)}
 .hv tr.match td{outline:2px solid var(--accent);outline-offset:-2px}
 .htrend{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:10px;font-size:13px}
 .htrend h3{margin:0 0 6px;font-size:14px}
 .htrend .ln{display:flex;flex-wrap:wrap;gap:4px 8px;margin:4px 0}
 .htrend .nm{font-weight:700;margin-right:6px}
 .htrend .pt{background:var(--bg);border-radius:8px;padding:1px 7px}
-.htrend .pt.H{color:var(--want)}.htrend .pt.L{color:#2a5bd7}
-mark{background:#ffe58a;color:inherit;border-radius:3px}
+.htrend .pt.H{color:var(--want)}.htrend .pt.L{color:#8fb0ff}
+mark{background:#e9d58a;color:#2a2147;border-radius:3px}
 .hmodal{position:fixed;inset:0;z-index:40;background:rgba(8,10,14,.6);display:none;align-items:center;justify-content:center}
 .hpanel{background:var(--bg);display:flex;flex-direction:column;width:100%;height:100%;min-height:0}
 #hview .hmh,#hview .hmb{width:100%}#hview{background:var(--bg);flex-direction:column;align-items:stretch;justify-content:flex-start}
 @media (min-width:700px){.hpanel{max-width:780px;height:auto;max-height:92vh;border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.45);border:1px solid var(--line)}}
-.hmodal.on{display:flex}
+.hmodal.on{display:flex;animation:fadein .16s ease}
+.hmodal.on .hpanel{animation:rise .24s cubic-bezier(.2,.7,.3,1)}
+.hbtn,.hf{transition:background-color .18s,border-color .18s,transform .1s}.hbtn:active,.hf:active{transform:scale(.95)}
 .hmh{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface)}
 .hmh .t{flex:1;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .hmb{flex:1 1 auto;min-height:0;overflow:auto;padding:12px 14px calc(14px + env(safe-area-inset-bottom))}
@@ -74,7 +76,7 @@ mark{background:#ffe58a;color:inherit;border-radius:3px}
 .hptabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .hptabs .on{background:var(--btn);color:var(--btn-ink);border-color:var(--btn-line)}
 .hpv{border:1px solid var(--line);border-radius:12px;background:var(--surface);min-height:30vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.hpv iframe{width:100%;height:62vh;border:0;background:#fff}
+.hpv iframe{width:100%;height:62vh;border:0;background:#f1edf8}
 .hpv img{max-width:100%;max-height:72vh;cursor:zoom-in}
 .hform{display:flex;flex-direction:column;gap:10px;max-width:640px;margin:0 auto}
 .hform label{font-size:13px;color:var(--muted);display:block;margin-bottom:3px}
@@ -463,7 +465,7 @@ function trHtml(rec, lang, text){
   if (ru && rec.values && rec.values.length) vt = "<table><tr>" + L.th.map(h => "<th>" + h + "</th>").join("") + "</tr>" + rec.values.map(v => '<tr class="' + (v[4] || "") + '"><td>' + hesc(v[0]) + "</td><td><b>" + hesc(v[1]) + (v[4] === "H" ? " ↑" : v[4] === "L" ? " ↓" : "") + "</b></td><td>" + hesc(v[2]) + "</td><td>" + hesc(v[3]) + "</td></tr>").join("") + "</table>";
   const body = hesc(text || "").split(/\n{2,}/).map(p => "<p>" + p.replace(/\n/g, "<br>") + "</p>").join("");
   return '<!DOCTYPE html><html lang="' + (ru ? "ru" : "pl") + '"><head><meta charset="utf-8"><title>' + hesc(rec.title) + " — " + L.tr + "</title><style>" +
-    "body{font:15px/1.5 system-ui,Segoe UI,sans-serif;max-width:800px;margin:30px auto;padding:0 20px;color:#1d2430}h1{font-size:22px;margin:0 0 4px}.s{color:#6b7380;font-size:13px;margin-bottom:14px}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}td,th{border:1px solid #ccd;padding:4px 8px;text-align:left}th{background:#eef2f5}tr.H td{background:#fff1e6}tr.L td{background:#eaf0ff}.f{color:#6b7380;font-size:12px;margin-top:24px;border-top:1px solid #e3e6eb;padding-top:8px}@media print{body{margin:0}}</style></head><body>" +
+    "body{font:15px/1.5 system-ui,Segoe UI,sans-serif;max-width:800px;margin:0 auto;padding:30px 20px;color:#1d2430;background:#f1edf8}h1{font-size:22px;margin:0 0 4px}.s{color:#6b7380;font-size:13px;margin-bottom:14px}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}td,th{border:1px solid #ccd;padding:4px 8px;text-align:left}th{background:#eef2f5}tr.H td{background:#fff1e6}tr.L td{background:#eaf0ff}.f{color:#6b7380;font-size:12px;margin-top:24px;border-top:1px solid #e3e6eb;padding-top:8px}@media print{body{margin:0}}</style></head><body>" +
     "<h1>" + hesc(rec.title) + '</h1><div class="s">' + L.tr + " " + from + "</div><div><b>" + L.p + ":</b> " + hesc(H.patient || "") + "</div><div><b>" + L.d + ":</b> " + hfmt(rec.date) + "</div>" +
     (rec.org ? "<div><b>" + L.o + ":</b> " + hesc(rec.org) + "</div>" : "") + (rec.doctor ? "<div><b>" + L.dr + ":</b> " + hesc(rec.doctor) + "</div>" : "") + vt + body + '<div class="f">' + L.foot + "</div></body></html>";
 }
@@ -776,9 +778,9 @@ const box = q$("#health");
 if (box){
   box.addEventListener("click", e => {
     const t = e.target;
-    const c = t.closest("[data-cat]"); if (c){ hs.cat = c.dataset.cat; render(); return; }
-    const co = t.closest("[data-country]"); if (co){ hs.country = co.dataset.country; render(); return; }
-    if (t.closest("[data-flags]")){ hs.flags = !hs.flags; render(); return; }
+    const c = t.closest("[data-cat]"); if (c){ hs.cat = c.dataset.cat; render(); enter(box); return; }
+    const co = t.closest("[data-country]"); if (co){ hs.country = co.dataset.country; render(); enter(box); return; }
+    if (t.closest("[data-flags]")){ hs.flags = !hs.flags; render(); enter(box); return; }
     const a = t.closest("[data-act]");
     if (a){
       const k = a.dataset.act;
