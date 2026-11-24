@@ -34,6 +34,7 @@
   }
 }
 /* раздел «Здоровье»: мягкая сумеречная тема, светлее обычной тёмной, но без яркого света */
+@media (prefers-color-scheme: light){:root{--low-bg:#dfe8ff}}
 :root{--stroke:linear-gradient(135deg,#8ed3a3 0%,#d1e49a 100%);--btn:linear-gradient(135deg,#a9c3a6 0%,#c4d1a4 100%);--btn-ink:#26362b;--btn-line:#8aa688;--low-bg:#34426f}
 body.light .lists button[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);box-shadow:inset 0 0 0 1px var(--btn-line)}
 body *{transition-property:background-color,color,border-color,box-shadow,opacity;transition-duration:.3s}
@@ -183,6 +184,23 @@ header.searching h1{display:none}
 .sq.ok{color:var(--done);border-color:var(--done)}
 .sq:hover{background:var(--surface)}
 @media (max-width:700px){header.searching #sortBtn{display:none}}
+@media (pointer:coarse){
+  header{gap:10px;padding-top:16px}
+  .ghostbtn{padding:11px 14px;font-size:14.5px;min-height:44px;border-radius:12px}
+  .iconbtn{padding:11px 13px}
+  #syncDot{width:16px;height:16px;box-shadow:0 0 0 8px transparent}
+  .lists{gap:8px}
+  .lists button{padding:13px 12px;font-size:15px;border-radius:14px}
+  .chip{padding:9px 14px;font-size:15px}
+  .tab{padding:12px 6px}
+  .act{padding:9px 13px;font-size:14.5px}
+  .rbtn,.hbtn{padding:10px 14px;font-size:15px;min-height:42px}
+  .rbtn.sm,.hbtn.sm,.hf{padding:7px 11px;font-size:14px;min-height:36px}
+  .rbtn.sq,.hbtn.sq{width:44px;height:42px}
+}
+.grab{align-self:center;flex:none;width:64px;height:24px;margin:-10px 0 -6px;touch-action:none;cursor:grab;background:linear-gradient(var(--line),var(--line)) center/44px 5px no-repeat;border-radius:12px}
+.sheet.full{max-height:100%;height:100%;border-radius:0}
+.sheet.full textarea{min-height:50vh}
 @media (min-width:820px){
   .tabs{display:none}
   #board{grid-template-columns:repeat(var(--n,2),1fr);gap:18px;padding-top:12px}
@@ -485,24 +503,34 @@ function renderSearch(q){
 }
 /* палитра плавно меняется слева направо: первые пять вкладок на 35%, «Здоровье» на 100% */
 const THEME_VARS = ["--bg","--surface","--ink","--muted","--line","--accent","--accent-ink","--want","--done","--want-bg","--done-bg","--danger"];
-const THEME_HEALTH = {"--bg":"#3c3560","--surface":"#463e6e","--ink":"#ece6f8","--muted":"#b9aed3","--line":"#5b5086","--accent":"#cfa2ee","--accent-ink":"#2a2147","--want":"#f0b765","--done":"#86d3a6","--want-bg":"#574531","--done-bg":"#2f4a3e","--danger":"#ff8f82"};
-const THEME_PAGE = ["#4a4378","#54416f","#5f4670"], THEME_GRAD = ["#6f86e8","#b36fd0","#e8956a"];
+const THEME_HEALTH_DARK = {"--bg":"#3c3560","--surface":"#463e6e","--ink":"#ece6f8","--muted":"#b9aed3","--line":"#5b5086","--accent":"#cfa2ee","--accent-ink":"#2a2147","--want":"#f0b765","--done":"#86d3a6","--want-bg":"#574531","--done-bg":"#2f4a3e","--danger":"#ff8f82"};
+const THEME_HEALTH_LIGHT = {"--bg":"#e8def4","--surface":"#f4eefa","--ink":"#2b1f42","--muted":"#7b6c98","--line":"#d8c8ea","--accent":"#a23dc8","--accent-ink":"#ffffff","--want":"#c26a00","--done":"#1f8a52","--want-bg":"#fbe6c4","--done-bg":"#d8eedf","--danger":"#d4493c"};
+const PAGE_DARK = ["#4a4378","#54416f","#5f4670"], PAGE_LIGHT = ["#e9e4fb","#f2e3f7","#f9e9e6"];
+const GRAD_HEALTH = ["#6f86e8","#b36fd0","#e8956a"];
+const schemeDark = window.matchMedia("(prefers-color-scheme: dark)");
 let themeBase = null;
 const h2r = h => { h = h.replace("#", ""); if (h.length === 3) h = h.split("").map(c => c + c).join(""); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
-const mixc = (a, b, t) => "#" + h2r(a).map((x, i) => Math.round(x + (h2r(b)[i] - x) * t).toString(16).padStart(2, "0")).join("");
+function toHsl(hex){ const [r, g, b] = h2r(hex).map(x => x / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn; let h = 0, sa = 0;
+  if (d){ sa = d / (1 - Math.abs(2 * l - 1)); h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; } return [h, sa, l]; }
+function fromHsl(h, sa, l){ const c = (1 - Math.abs(2 * l - 1)) * sa, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2; const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x]; return "#" + [r, g, b].map(v => Math.round(Math.max(0, Math.min(1, v + m)) * 255).toString(16).padStart(2, "0")).join(""); }
+// смешивание без «грязи»: насыщенность не падает, меняются в основном светлота и оттенок
+function mixc(a, b, t){ if (t >= 1) return b; if (t <= 0) return a; const [h1, s1, l1] = toHsl(a), [h2, s2, l2] = toHsl(b); const dh = ((h2 - h1 + 540) % 360) - 180; return fromHsl((h1 + dh * t + 360) % 360, s1 + (Math.max(s1, s2) - s1) * t, l1 + (l2 - l1) * t); }
+const mixcOld = (a, b, t) => "#" + h2r(a).map((x, i) => Math.round(x + (h2r(b)[i] - x) * t).toString(16).padStart(2, "0")).join("");
 function applyTheme(){
+  const dark = schemeDark.matches, TH = dark ? THEME_HEALTH_DARK : THEME_HEALTH_LIGHT, PG = dark ? PAGE_DARK : PAGE_LIGHT;
   const cs = getComputedStyle(document.documentElement);
-  if (!themeBase){ themeBase = {}; THEME_VARS.forEach(v => themeBase[v] = cs.getPropertyValue(v).trim()); themeBase.page = (cs.getPropertyValue("--page").match(/#[0-9a-f]{6}/gi) || THEME_PAGE); themeBase.grad = (cs.getPropertyValue("--grad").match(/#[0-9a-f]{6}/gi) || THEME_GRAD); }
-  const n = LISTS.filter(l => !l.view || l.id !== "health").length;
+  if (!themeBase || themeBase.dark !== dark){ themeBase = {dark}; THEME_VARS.forEach(v => themeBase[v] = cs.getPropertyValue(v).trim()); themeBase.page = (cs.getPropertyValue("--page").match(/#[0-9a-f]{6}/gi) || PG); themeBase.grad = (cs.getPropertyValue("--grad").match(/#[0-9a-f]{6}/gi) || GRAD_HEALTH); }
+  const n = LISTS.filter(l => l.id !== "health").length;
   const idx = Math.max(0, LISTS.findIndex(l => l.id === ui.list));
   const t = ui.list === "health" ? 1 : (n > 1 ? idx / (n - 1) : 0) * 0.35;
   const st = document.body.style;
-  THEME_VARS.forEach(v => { try { st.setProperty(v, mixc(themeBase[v], THEME_HEALTH[v], t)); } catch(e) {} });
+  THEME_VARS.forEach(v => { try { st.setProperty(v, mixc(themeBase[v], TH[v], t)); } catch(e) {} });
   const m3 = (a, b, k) => [0, 1, 2].map(i => mixc(a[i], b[i], k));
-  const p = m3(themeBase.page, THEME_PAGE, t), gr = m3(themeBase.grad, THEME_GRAD, t);
+  const p = m3(themeBase.page, PG, t), gr = m3(themeBase.grad, GRAD_HEALTH, t);
   st.setProperty("--page", `linear-gradient(170deg,${p[0]} 0%,${p[1]} 50%,${p[2]} 100%)`);
   st.setProperty("--grad", `linear-gradient(135deg,${gr[0]} 0%,${gr[1]} 52%,${gr[2]} 100%)`);
 }
+schemeDark.addEventListener && schemeDark.addEventListener("change", () => { themeBase = null; applyTheme(); });
 function vt(fn){ if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches){ try { document.startViewTransition(fn); return; } catch(e) {} } fn(); }
 function enter(el){ if (!el) return; el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter"); clearTimeout(el._en); el._en = setTimeout(() => el.classList.remove("enter"), 900); }
 const VIEWS = {health:{obj:"Health", file:"health.js", name:"Здоровье"}, receipts:{obj:"Receipts", file:"receipts.js", name:"Чеки"}};
@@ -518,7 +546,7 @@ function render(){
   const c = L();
   if (!c.st.some(x => x.id === ui.tab)) ui.tab = c.st[0].id;
   $("#lists").innerHTML = LISTS.map(l => `<button type="button" data-list="${l.id}" aria-pressed="${ui.list===l.id}"${ui.list===l.id ? ' style="view-transition-name:navsel"' : ""}>${l.name}</button>`).join("");
-  $("#sortBtn").textContent = ui.sort === "new" ? "Сначала новые" : "Сначала старые";
+  $("#sortBtn").textContent = ui.sort === "new" ? "Новые ↓" : "Старые ↑"; $("#sortBtn").title = ui.sort === "new" ? "Сначала новые" : "Сначала старые";
   const hv = !!c.view;
   document.body.classList.toggle("light", c.id === "health"); applyTheme();
   const sq = !hv && ui.q.trim();
@@ -557,8 +585,8 @@ function markDone(it){ it.status = "done"; it.now = false; touch(it); }
 function afterDone(it){ if (L().rating) openRate(it.id); else toast("Готово"); }
 function backToWant(it){ it.status = "want"; it.rating = 0; touch(it); }
 
-function openOverlay(html){ $("#sheet").innerHTML = html; $("#overlay").classList.add("open"); }
-function closeOverlay(){ $("#overlay").classList.remove("open"); $("#sheet").innerHTML = ""; render(); }
+function openOverlay(html){ const sh = $("#sheet"); sh.classList.remove("full"); sh.innerHTML = '<div class="grab" id="grab" title="Потяни вверх, чтобы развернуть"></div>' + html; $("#overlay").classList.add("open"); }
+function closeOverlay(){ $("#overlay").classList.remove("open"); $("#sheet").classList.remove("full"); $("#sheet").innerHTML = ""; render(); }
 
 function openRate(id){
   const it = items.find(x => x.id === id); if (!it) return;
@@ -893,6 +921,23 @@ document.addEventListener("touchmove", e => { if (drag && drag.started) e.preven
 $("#board").addEventListener("contextmenu", e => { if (e.target.closest(".card")) e.preventDefault(); });
 
 /* ---------- other events ---------- */
+// полоска сверху карточки: потяни вверх, чтобы развернуть на весь экран, вниз, чтобы свернуть или закрыть
+(() => {
+  let g0 = null;
+  document.addEventListener("pointerdown", e => {
+    const gr = e.target.closest("#grab"); if (!gr) return;
+    g0 = {y:e.clientY, id:e.pointerId, moved:false}; try { gr.setPointerCapture(e.pointerId); } catch(_) {}
+  });
+  document.addEventListener("pointermove", e => { if (g0 && e.pointerId === g0.id && Math.abs(e.clientY - g0.y) > 6) g0.moved = true; });
+  const end = e => {
+    if (!g0 || e.pointerId !== g0.id) return;
+    const dy = e.clientY - g0.y, sh = $("#sheet"), moved = g0.moved; g0 = null;
+    if (!moved){ sh.classList.toggle("full"); return; }
+    if (dy < -30) sh.classList.add("full");
+    else if (dy > 30){ if (sh.classList.contains("full")) sh.classList.remove("full"); else if (dy > 80) closeOverlay(); }
+  };
+  document.addEventListener("pointerup", end); document.addEventListener("pointercancel", () => { g0 = null; });
+})();
 $("#overlay").addEventListener("click", e => { if (e.target.id === "overlay") closeOverlay(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#overlay").classList.contains("open")) closeOverlay(); });
 $("#lists").addEventListener("click", e => {
