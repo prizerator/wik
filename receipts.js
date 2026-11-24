@@ -4,6 +4,7 @@
 (function(){
 const RK = "wiki-receipts", RGK = "wiki-receipts-g", DIR = "Чеки на технику", DB = "receipts-db.json", DRV = "drive/v3/files";
 const q$ = s => document.querySelector(s);
+const GICON = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c.6 5.4 4.6 9.4 10 10-5.4.6-9.4 4.6-10 10-.6-5.4-4.6-9.4-10-10 5.4-.6 9.4-4.6 10-10z" fill="var(--accent)"/></svg>';
 const resc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const rfmt = d => d ? d.slice(8, 10) + "." + d.slice(5, 7) + "." + d.slice(0, 4) : "";
 const norm = s => String(s || "").toLowerCase().replace(/ё/g, "е");
@@ -30,7 +31,8 @@ css.textContent = `
 .rbtn:active{transform:scale(.95)}
 .rbtn.pri,#receipts .chip[aria-pressed="true"]{background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--stroke) border-box;border-color:transparent;color:var(--ink);font-weight:700}
 #receipts .chip{border-width:2px}
-.rbtn.sm{padding:4px 9px;font-size:13px}.rbtn.del{color:var(--danger);border-color:var(--danger)}
+.rbtn.sm{padding:4px 9px;font-size:13px}.rbtn.sq{padding:0;width:38px;height:36px;display:inline-flex;align-items:center;justify-content:center}.rbtn.sq.sm{width:34px;height:30px}
+.rform .st{font-size:13px;margin-top:4px}.rform .st.ok{color:var(--done)}.rform .st.err{color:var(--danger)}.rbtn.del{color:var(--danger);border-color:var(--danger)}
 .ryear{font-weight:700;color:var(--muted);margin:16px 0 6px;font-size:14px}
 .rcard{position:relative;overflow:hidden;--pw:min(46%,190px);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px;display:flex;cursor:pointer;text-align:left;width:100%;color:var(--ink);min-height:92px}
 .rcard .poster{filter:blur(1.6px) saturate(1.1);opacity:.9}
@@ -159,7 +161,7 @@ function render(){
   const all = docs(), list = filtered();
   const n = f => all.filter(d => { const w = warranty(d); return f === "ok" ? w && w.days >= 0 : f === "soon" ? w && w.st === "soon" : w && w.st === "end"; }).length;
   const chip = (k, label, c) => `<button type="button" class="chip" data-f="${k}" aria-pressed="${rs.f === k}"${rs.f === k ? ' style="view-transition-name:selr"' : ""}>${label}${c != null ? ` <small>${c}</small>` : ""}</button>`;
-  let html = `<div class="rtop"><button type="button" class="rbtn pri" data-act="add">+ Добавить чек</button><button type="button" class="rbtn" data-act="bulk">📥 Загрузить пачку фото</button><button type="button" class="rbtn" data-act="sync">⟳</button></div><input type="file" id="rbulk" multiple accept="image/*" hidden>`;
+  let html = `<div class="rtop"><button type="button" class="rbtn pri" data-act="add">+ Добавить чек</button><button type="button" class="rbtn sq" data-act="copy" title="Скопировать запрос для Gemini" aria-label="Скопировать запрос для Gemini">${GICON}</button><button type="button" class="rbtn" data-act="bulk">📥 Загрузить пачку фото</button><button type="button" class="rbtn" data-act="sync">⟳</button></div><input type="file" id="rbulk" multiple accept="image/*" hidden>`;
   html += `<div class="rst">${resc(rs.status || "")}</div><div class="rtop">${chip("all", "Все", all.length)}${chip("ok", "Гарантия идёт", n("ok"))}${chip("soon", "Скоро закончится", n("soon"))}${chip("end", "Истекла", n("end"))}</div>`;
   if (!list.length) html += `<div style="color:var(--muted);text-align:center;padding:30px 10px">${all.length ? "Ничего не нашлось" : "Пока пусто. Нажми «Добавить чек» или «Загрузить пачку фото»."}</div>`;
   let year = "";
@@ -233,6 +235,50 @@ async function rotateSaved(deg){
   } catch(e) { progress(""); toast("Не получилось: " + (e.message === "auth" ? "нужно войти в Google" : e.message)); }
 }
 
+/* ---------- запрос для Gemini ---------- */
+const PROMPT = `Ты помогаешь вести мой личный архив чеков на технику. Я прикрепляю фото чека, гарантийного талона или упаковки.
+
+Ответь ТОЛЬКО одним блоком JSON, без текста до и после, строго по схеме:
+{
+  "date": "ГГГГ-ММ-ДД, дата покупки",
+  "title": "что куплено, коротко по-русски: тип и модель, например «Смартфон Samsung Galaxy A54»",
+  "store": "магазин и город по-русски",
+  "price": "итоговая сумма с валютой, например 1999 zł",
+  "months": 24,
+  "note": "серийный номер, IMEI или номер чека, если они есть; иначе пустая строка",
+  "pages": [{"rotate": 0}]
+}
+
+"months" это гарантия в месяцах числом; если на чеке не указана, ставь 24.
+"pages" это по одному элементу на каждое прикреплённое изображение, в том же порядке. "rotate" это на сколько градусов повернуть картинку ПО ЧАСОВОЙ СТРЕЛКЕ, чтобы текст стал ровным: 0, 90, 180 или 270.
+Переписывай данные точно как в чеке, ничего не придумывай. Если что-то не читается, пиши «(?)» или оставляй пустую строку. Совет не нужен.`;
+async function copyPrompt(){
+  try { await navigator.clipboard.writeText(PROMPT); }
+  catch(e) { const t = document.createElement("textarea"); t.value = PROMPT; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
+  toast("Запрос скопирован: вставь его в Gemini и прикрепи фото чека");
+}
+function parseGem(t){
+  t = String(t || "").trim(); if (!t) return null;
+  const s = t.indexOf("{"), e = t.lastIndexOf("}");
+  if (s >= 0 && e > s){ const j = t.slice(s, e + 1); for (const x of [j, j.replace(/[“”„]/g, '"').replace(/,\s*([}\]])/g, "$1")]){ try { return JSON.parse(x); } catch(_) {} } }
+  return false;
+}
+function applyGem(txt){
+  const st = q$("#rgSt"), f = q$("#rForm"); if (!st || !f) return;
+  const g = parseGem(txt);
+  if (g === null){ st.textContent = ""; st.className = "st"; return; }
+  if (g === false){ st.textContent = "Не получилось разобрать ответ: скопируй его целиком, вместе с { }."; st.className = "st err"; return; }
+  const got = [];
+  if (g.date && /^\d{4}-\d{2}-\d{2}$/.test(String(g.date).trim())){ f.date.value = String(g.date).trim(); got.push("дата"); }
+  if (g.title){ f.title.value = g.title; got.push("что куплено"); }
+  if (g.store){ f.store.value = g.store; got.push("магазин"); }
+  if (g.price){ f.price.value = g.price; got.push("цена"); }
+  if (+g.months > 0){ f.months.value = Math.min(120, Math.round(+g.months)); }
+  if (g.note) f.note.value = g.note;
+  if (Array.isArray(g.pages)) { pend.forEach((p, i) => { const k = g.pages[i] && +g.pages[i].rotate; if ([0, 90, 180, 270].includes(k)) p.rot = k; }); drawFiles(); }
+  st.textContent = "✓ Заполнено: " + got.join(", ") + ". Проверь и сохраняй."; st.className = "st ok";
+}
+
 /* ---------- добавление и правка ---------- */
 function drawFiles(){
   const box = q$("#rflist"); if (!box) return; box.innerHTML = "";
@@ -258,7 +304,7 @@ function openEdit(d){
   editing = d || null; pend = []; gone = [];
   const m = q$("#redit");
   m.innerHTML = `<div class="rpanel"><div class="rmh"><div class="t">${d ? "Изменить: " + resc(d.title) : "Новый чек"}</div><button type="button" class="rbtn sm" id="rex">✕</button></div><div class="rmb"><form class="rform" id="rForm" autocomplete="off">
-    <div><div id="rflist" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div><button type="button" class="rbtn pri" id="rpick">📷 Фото чека</button><input type="file" id="rfile" multiple accept="image/*" hidden></div>
+    <div><div id="rflist" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button type="button" class="rbtn pri" id="rpick">📷 Фото чека</button><button type="button" class="rbtn sq" id="rgCopy" title="Скопировать запрос для Gemini" aria-label="Скопировать запрос для Gemini">${GICON}</button><button type="button" class="rbtn" id="rgPaste">📥 Вставить ответ</button></div><input type="file" id="rfile" multiple accept="image/*" hidden><textarea id="rgText" style="min-height:44px;margin-top:6px" placeholder="Ответ Gemini: вставь сюда, всё заполнится само"></textarea><div class="st" id="rgSt"></div></div>
     <div><label>Что куплено</label><input type="text" name="title" required placeholder="Например, телефон"></div>
     <div class="two"><div><label>Дата покупки</label><input type="date" name="date" required></div><div><label>Гарантия, месяцев</label><input type="number" name="months" min="0" max="120" inputmode="numeric"></div></div>
     <div class="two"><div><label>Магазин</label><input type="text" name="store"></div><div><label>Цена</label><input type="text" name="price" placeholder="например 1999 zł"></div></div>
@@ -272,6 +318,9 @@ function openEdit(d){
   q$("#rex").onclick = q$("#rcancel").onclick = () => closeM("#redit");
   q$("#rpick").onclick = () => q$("#rfile").click();
   q$("#rfile").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
+  q$("#rgCopy").onclick = copyPrompt;
+  q$("#rgPaste").onclick = async () => { try { const t = await navigator.clipboard.readText(); q$("#rgText").value = t; applyGem(t); } catch(e) { q$("#rgText").focus(); toast("Браузер не дал прочитать буфер: вставь текст в поле вручную"); } };
+  q$("#rgText").addEventListener("input", e => applyGem(e.target.value));
   const del = q$("#rdel"); if (del) del.onclick = () => {
     if (del.dataset.armed !== "1"){ del.dataset.armed = "1"; del.textContent = "Точно удалить? (фото на Диске останутся)"; return; }
     d.deleted = true; d.updated = Date.now(); commit(); closeM("#redit"); closeM("#rdoc"); render();
@@ -342,7 +391,7 @@ if (box) box.addEventListener("click", e => {
   const t = e.target;
   const fb = t.closest("[data-f]"); if (fb){ rs.f = fb.dataset.f; vt(() => { render(); enter(box); }); return; }
   const a = t.closest("[data-act]");
-  if (a){ const k = a.dataset.act; if (k === "add") openEdit(null); else if (k === "bulk") q$("#rbulk").click(); else if (k === "sync") rSync(true); return; }
+  if (a){ const k = a.dataset.act; if (k === "add") openEdit(null); else if (k === "copy") copyPrompt(); else if (k === "bulk") q$("#rbulk").click(); else if (k === "sync") rSync(true); return; }
   const op = t.closest("[data-open]"); if (op){ const d = R.docs.find(x => x.id === op.dataset.open); if (d) openDoc(d); }
 });
 q$("#rdoc").addEventListener("click", e => { if (e.target.id === "rdoc"){ closeM("#rdoc"); opened = null; } });

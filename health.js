@@ -6,6 +6,7 @@ const HK = "wiki-health", HGK = "wiki-health-g", DB_NAME = "health-db.json", DIR
 const CATS0 = ["Анализы", "Исследования", "Справки", "Прочее"];
 const DRV = "drive/v3/files";
 const q$ = s => document.querySelector(s);
+const GICON = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c.6 5.4 4.6 9.4 10 10-5.4.6-9.4 4.6-10 10-.6-5.4-4.6-9.4-10-10 5.4-.6 9.4-4.6 10-10z" fill="var(--accent)"/></svg>';
 const hesc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const hfmt = d => d ? d.slice(8, 10) + "." + d.slice(5, 7) + "." + d.slice(0, 4) : "";
 const norm = s => String(s || "").toLowerCase().replace(/ё/g, "е");
@@ -32,6 +33,7 @@ css.textContent = `
 .hbtn.pri,#health .chip[aria-pressed="true"],.hptabs .on{background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--stroke) border-box;border-color:transparent;color:var(--ink);font-weight:700}
 .hbtn{box-shadow:0 1px 0 rgba(0,0,0,.03)}
 .hbtn.sm{padding:4px 9px;font-size:13px}
+.hbtn.sq{padding:0;width:38px;height:36px;display:inline-flex;align-items:center;justify-content:center}.hbtn.sq.sm{width:34px;height:30px}
 .hbtn.del{color:var(--danger);border-color:var(--danger)}
 .hyear{font-weight:700;color:var(--muted);margin:16px 0 6px;font-size:14px}
 .hcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:11px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px}
@@ -249,7 +251,7 @@ function chips(){
 function render(){
   const box = q$("#health"); if (!box || box.hidden) return;
   const list = filtered();
-  let html = `<div class="htop"><button type="button" class="hbtn pri" data-act="add">+ Добавить документ</button><button type="button" class="hbtn" data-act="copy">📋 Запрос для Gemini</button><button type="button" class="hbtn" data-act="import">📁 Подключить старую Медкарту</button><button type="button" class="hbtn" data-act="verify">✔ Проверить перенос</button><button type="button" class="hbtn" data-act="sync">⟳</button></div>`;
+  let html = `<div class="htop"><button type="button" class="hbtn pri" data-act="add">+ Добавить документ</button><button type="button" class="hbtn sq" data-act="copy" title="Скопировать запрос для Gemini" aria-label="Скопировать запрос для Gemini">${GICON}</button><button type="button" class="hbtn" data-act="import">📁 Подключить старую Медкарту</button><button type="button" class="hbtn" data-act="verify">✔ Проверить перенос</button><button type="button" class="hbtn" data-act="sync">⟳</button></div>`;
   html += `<div class="hst">${hesc(hs.status || "")}</div>` + chips() + trend(list);
   if (!list.length) html += `<div class="empty" style="color:var(--muted);text-align:center;padding:30px 10px">${docs().length ? "Ничего не нашлось" : "Пока пусто. Нажми «Добавить документ» или перенеси старую Медкарту."}</div>`;
   let year = "";
@@ -553,7 +555,7 @@ function openEdit(d){
       <input type="file" id="hfile" multiple accept="image/*,application/pdf,.html,.htm" hidden>
       <label id="hmergeRow" style="display:none;margin-top:8px;align-items:center;gap:6px;justify-content:center;color:var(--ink)"><input type="checkbox" id="hmerge" checked style="width:auto"> склеить фото-оригиналы в один PDF</label></div>
     <div id="htrn" class="st"></div>
-    <div><label>Ответ Gemini</label><div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="hbtn sm" id="hgCopy">📋 Скопировать запрос</button><button type="button" class="hbtn sm" id="hgPaste">📥 Вставить ответ</button></div><textarea id="hgText" placeholder="Вставь сюда ответ Gemini: всё заполнится само"></textarea><div class="st" id="hgSt"></div></div>
+    <div><label>Ответ Gemini</label><div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="hbtn sm sq" id="hgCopy" title="Скопировать запрос для Gemini" aria-label="Скопировать запрос для Gemini">${GICON}</button><button type="button" class="hbtn sm" id="hgPaste">📥 Вставить</button></div><textarea id="hgText" placeholder="Вставь сюда ответ Gemini: всё заполнится само"></textarea><div class="st" id="hgSt"></div></div>
     <div class="two"><div><label>Дата</label><input type="date" name="date" required></div><div><label>Раздел</label><select name="cat">${o(H.cats, d ? d.cat : "Анализы")}</select></div></div>
     <div><label>Название</label><input type="text" name="title" required></div>
     <div class="two"><div><label>Язык оригинала</label><select name="lang">${o(["RU", "PL", "KA", "EN", "—"], d ? (d.lang || "—") : "PL")}</select></div><div><label>Страна</label><select name="country">${o(["Польша", "Грузия", "Беларусь", "другая"], d ? (d.country || "Польша") : "Польша")}</select></div></div>
