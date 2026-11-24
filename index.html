@@ -158,6 +158,7 @@ h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spaci
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
   <main id="board"></main>
+  <div id="health" hidden></div>
   <form id="addbar" autocomplete="off">
     <select id="addType" aria-label="Тип"></select>
     <input id="addText" type="text" placeholder="Добавить…" enterkeyhint="done">
@@ -185,7 +186,8 @@ const LISTS = [
     now:"Делаю сейчас", nowBadge:"делаю", doneBtn:"✓ Сделано", ph:"Что хочу сделать…", empty:"Пока пусто. Запиши, что хочешь сделать"},
   {id:"notes", name:"Мысли", st:[{id:"want", label:"Мысли", c:"var(--accent)", bg:"var(--bg)"}], long:true, ph:"Новая мысль…", empty:"Пока пусто. Запиши первую мысль"},
   {id:"wishes", name:"Хотелки", st:[{...ST_WANT, label:"Хочу"}, {...ST_DONE, label:"Куплено"}], poster:true, price:true, link:true,
-    doneBtn:"✓ Куплено", ph:"Что хочу купить…", empty:"Пока пусто. Запиши, что хочешь"}
+    doneBtn:"✓ Куплено", ph:"Что хочу купить…", empty:"Пока пусто. Запиши, что хочешь"},
+  {id:"health", name:"Здоровье", view:"health", st:[{id:"want", label:"Здоровье", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: название, показатель, клиника…", empty:""}
 ];
 const DEFAULT_TYPES = ["фильм","сериал","мульт","книга","игра"];
 const TYPE_COLORS = {"фильм":"#e5484d","сериал":"#3e63dd","мульт":"#12a594","книга":"#8e4ec6","игра":"#e93d82"};
@@ -398,11 +400,22 @@ function cardHtml(i){
     <div class="meta">${nowb}${tags}${due}${price}${link}${rating}<span class="date">${fmtDate(i.created)}</span></div>${acts}</div></article>`;
 }
 
+function loadHealth(){
+  if (window.Health){ Health.render(); return; }
+  if (loadHealth.s) return; loadHealth.s = true;
+  const el = document.createElement("script"); el.src = "health.js";
+  el.onerror = () => { loadHealth.s = false; toast("Не удалось загрузить раздел «Здоровье»"); };
+  document.head.appendChild(el);
+}
 function render(){
   const c = L();
   if (!c.st.some(x => x.id === ui.tab)) ui.tab = c.st[0].id;
   $("#lists").innerHTML = LISTS.map(l => `<button type="button" data-list="${l.id}" aria-pressed="${ui.list===l.id}">${l.name}</button>`).join("");
   $("#sortBtn").textContent = ui.sort === "new" ? "Сначала новые" : "Сначала старые";
+  const hv = c.view === "health";
+  $("#health").hidden = !hv; $("#board").hidden = hv; $("#addbar").hidden = hv; $("#sortBtn").hidden = hv;
+  $("#q").placeholder = hv ? c.ph : "Поиск по названию и заметкам";
+  if (hv){ $("#chips").hidden = true; $("#tabs").hidden = true; loadHealth(); return; }
   $("#chips").hidden = !c.types; $("#addType").hidden = !c.types; $("#tabs").hidden = c.st.length < 2;
   $("#addText").placeholder = c.ph;
   $("#board").style.setProperty("--n", c.st.length); $("#tabs").style.setProperty("--n", c.st.length);
@@ -776,6 +789,7 @@ $("#lists").addEventListener("click", e => {
   ui.list = b.dataset.list; ui.tab = "want"; ui.type = ""; ui.q = ""; $("#q").value = ""; $("#q").hidden = true; $("#searchBtn").classList.remove("on");
   try { localStorage.setItem("wiki-list", ui.list); } catch(err) {}
   render();
+  if (ui.list === "health" && window.Health) Health.open();
 });
 $("#chips").addEventListener("click", e => {
   const b = e.target.closest("[data-type]"); if (!b) return;
