@@ -38,12 +38,21 @@ body.light{
   --bg:#3c3560; --surface:#463e6e; --ink:#ece6f8; --muted:#b9aed3; --line:#5b5086;
   --accent:#cfa2ee; --accent-ink:#2a2147;
   --grad:linear-gradient(135deg,#6f86e8 0%,#b36fd0 52%,#e8956a 100%);
-  --page:linear-gradient(170deg,#4a4378 0%,#54416f 50%,#5f4670 100%);
+  --stroke:linear-gradient(135deg,#8ed3a3 0%,#d1e49a 100%);
   --btn:linear-gradient(135deg,#a9c3a6 0%,#c4d1a4 100%); --btn-ink:#26362b; --btn-line:#8aa688;
   --want:#f0b765; --done:#86d3a6; --want-bg:#574531; --done-bg:#2f4a3e; --danger:#ff8f82; --low-bg:#34426f;
   color-scheme:dark;
 }
 body.light .lists button[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);box-shadow:inset 0 0 0 1px var(--btn-line)}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(170deg,#4a4378 0%,#54416f 50%,#5f4670 100%);opacity:0;transition:opacity .4s ease}
+body.light::before{opacity:1}
+body *{transition-property:background-color,color,border-color,box-shadow,opacity;transition-duration:.3s}
+/* кнопка сортировки сплющивается при переходе в «Здоровье» */
+#sortBtn{max-width:170px;overflow:hidden;white-space:nowrap;transition:max-width .3s ease,padding .3s ease,margin .3s ease,opacity .2s ease,border-width .3s ease,background-color .3s,color .3s}
+#sortBtn.collapsed{max-width:0;padding-left:0;padding-right:0;margin-left:-8px;opacity:0;border-width:0;pointer-events:none}
+/* плавное перетекание выбранной кнопки */
+::view-transition-group(*){animation-duration:.3s;animation-timing-function:cubic-bezier(.3,.8,.3,1)}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.22s}
 /* плавность */
 @keyframes rise{from{opacity:0;transform:translateY(10px)}}
 @keyframes fadein{from{opacity:0}}
@@ -477,6 +486,7 @@ function renderSearch(q){
   }
   b.innerHTML = total ? html : `<div class="empty">Ничего не нашлось</div>`;
 }
+function vt(fn){ if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches){ try { document.startViewTransition(fn); return; } catch(e) {} } fn(); }
 function enter(el){ if (!el) return; el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter"); clearTimeout(el._en); el._en = setTimeout(() => el.classList.remove("enter"), 900); }
 function loadHealth(){
   if (window.Health){ Health.render(); return; }
@@ -488,12 +498,12 @@ function loadHealth(){
 function render(){
   const c = L();
   if (!c.st.some(x => x.id === ui.tab)) ui.tab = c.st[0].id;
-  $("#lists").innerHTML = LISTS.map(l => `<button type="button" data-list="${l.id}" aria-pressed="${ui.list===l.id}">${l.name}</button>`).join("");
+  $("#lists").innerHTML = LISTS.map(l => `<button type="button" data-list="${l.id}" aria-pressed="${ui.list===l.id}"${ui.list===l.id ? ' style="view-transition-name:navsel"' : ""}>${l.name}</button>`).join("");
   $("#sortBtn").textContent = ui.sort === "new" ? "Сначала новые" : "Сначала старые";
   const hv = c.view === "health";
   document.body.classList.toggle("light", hv);
   const sq = !hv && ui.q.trim();
-  $("#health").hidden = !hv; $("#board").hidden = hv; $("#addbar").hidden = hv || !!sq; $("#sortBtn").hidden = hv;
+  $("#health").hidden = !hv; $("#board").hidden = hv; $("#addbar").hidden = hv || !!sq; $("#sortBtn").classList.toggle("collapsed", hv); $("#sortBtn").tabIndex = hv ? -1 : 0;
   delete $("#board").dataset.search;
   $("#q").placeholder = hv ? c.ph : "Поиск по названию и заметкам";
   if (hv){ $("#chips").hidden = true; $("#tabs").hidden = true; loadHealth(); return; }
@@ -503,15 +513,15 @@ function render(){
   $("#board").style.setProperty("--n", c.st.length); $("#tabs").style.setProperty("--n", c.st.length);
   if (c.types){
     const types = allTypes();
-    $("#chips").innerHTML = `<button class="chip" type="button" data-type="" aria-pressed="${ui.type===""}">Все</button>` +
-      types.map(t => `<button class="chip" type="button" data-type="${esc(t)}" aria-pressed="${ui.type===t}">${dot(t)}${esc(t)}</button>`).join("");
+    $("#chips").innerHTML = `<button class="chip" type="button" data-type="" aria-pressed="${ui.type===""}"${ui.type==="" ? ' style="view-transition-name:chipsel"' : ""}>Все</button>` +
+      types.map(t => `<button class="chip" type="button" data-type="${esc(t)}" aria-pressed="${ui.type===t}"${ui.type===t ? ' style="view-transition-name:chipsel"' : ""}>${dot(t)}${esc(t)}</button>`).join("");
     const sel = $("#addType");
     sel.innerHTML = `<option value="">без типа</option>` + types.map(t => `<option value="${esc(t)}"${t===ui.addType?" selected":""}>${esc(t)}</option>`).join("");
     if (!ui.addType) sel.value = "";
   }
   $("#tabs").innerHTML = c.st.map(s => {
     const n = visible(s.id).length;
-    return `<button class="tab" type="button" role="tab" data-tab="${s.id}" aria-selected="${ui.tab===s.id}" style="--c:${s.c};--cbg:${s.bg}"><b>${n}</b><span>${s.label}</span></button>`;
+    return `<button class="tab" type="button" role="tab" data-tab="${s.id}" aria-selected="${ui.tab===s.id}" style="--c:${s.c};--cbg:${s.bg}${ui.tab===s.id ? ";view-transition-name:tabsel" : ""}"><b>${n}</b><span>${s.label}</span></button>`;
   }).join("");
   const none = cur().length === 0;
   $("#board").innerHTML = c.st.map(s => {
@@ -870,16 +880,16 @@ $("#lists").addEventListener("click", e => {
   const b = e.target.closest("[data-list]"); if (!b) return;
   ui.list = b.dataset.list; ui.tab = "want"; ui.type = ""; ui.q = ""; $("#q").value = ""; $("#q").hidden = true; $("#searchBtn").classList.remove("on"); document.querySelector("header").classList.remove("searching");
   try { localStorage.setItem("wiki-list", ui.list); } catch(err) {}
-  render(); enter($("#board")); enter($("#health"));
+  vt(() => { render(); enter($("#board")); enter($("#health")); });
   if (ui.list === "health" && window.Health) Health.open();
 });
 $("#chips").addEventListener("click", e => {
   const b = e.target.closest("[data-type]"); if (!b) return;
-  ui.type = b.dataset.type; render(); enter($("#board"));
+  ui.type = b.dataset.type; vt(() => { render(); enter($("#board")); });
 });
 $("#tabs").addEventListener("click", e => {
   const b = e.target.closest("[data-tab]"); if (!b) return;
-  ui.tab = b.dataset.tab; render(); enter($("#board"));
+  ui.tab = b.dataset.tab; vt(() => { render(); enter($("#board")); });
 });
 $("#board").addEventListener("click", e => {
   if (Date.now() - lastDragEnd < 450) return;

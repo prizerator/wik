@@ -28,9 +28,9 @@ css.textContent = `
 #health .htop{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 10px}
 #health .hst{color:var(--muted);font-size:13px;margin:2px 0 8px}
 .hbtn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:7px 12px;font-weight:600;font-size:14px}
-.hbtn.pri{background:var(--btn);color:var(--btn-ink);border-color:var(--btn-line)}
+.hbtn,.hf,#health .chip{border-width:2px}
+.hbtn.pri,#health .chip[aria-pressed="true"],.hptabs .on{background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--stroke) border-box;border-color:transparent;color:var(--ink);font-weight:700}
 .hbtn{box-shadow:0 1px 0 rgba(0,0,0,.03)}
-#health .chip[aria-pressed="true"]{background:var(--btn);border-color:var(--btn-line);color:var(--btn-ink)}
 .hbtn.sm{padding:4px 9px;font-size:13px}
 .hbtn.del{color:var(--danger);border-color:var(--danger)}
 .hyear{font-weight:700;color:var(--muted);margin:16px 0 6px;font-size:14px}
@@ -74,7 +74,7 @@ mark{background:#e9d58a;color:#2a2147;border-radius:3px}
 .hmeta{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:14px;margin-bottom:8px}
 .hmeta .k{color:var(--muted)}
 .hptabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-.hptabs .on{background:var(--btn);color:var(--btn-ink);border-color:var(--btn-line)}
+
 .hpv{border:1px solid var(--line);border-radius:12px;background:var(--surface);min-height:30vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .hpv iframe{width:100%;height:62vh;border:0;background:#f1edf8}
 .hpv img{max-width:100%;max-height:72vh;cursor:zoom-in}
@@ -242,9 +242,9 @@ function chips(){
   const all = docs();
   const cats = ["Все", ...H.cats.filter(k => all.some(d => d.cat === k))];
   const countries = ["Все", ...new Set(all.map(d => d.country).filter(Boolean))];
-  const chip = (on, attr, label, n) => `<button type="button" class="chip" ${attr} aria-pressed="${on}">${hesc(label)}${n != null ? ` <small>${n}</small>` : ""}</button>`;
-  return `<div class="htop">${cats.map(k => chip(hs.cat === k, `data-cat="${hesc(k)}"`, k === "Все" ? "Все разделы" : k, k === "Все" ? all.length : all.filter(d => d.cat === k).length)).join("")}</div>` +
-    `<div class="htop">${countries.length > 2 ? countries.map(k => chip(hs.country === k, `data-country="${hesc(k)}"`, k === "Все" ? "Все страны" : k)).join("") : ""}${chip(hs.flags, "data-flags", "↑↓ только с отклонениями")}</div>`;
+  const chip = (on, attr, label, n, vn) => `<button type="button" class="chip" ${attr} aria-pressed="${on}"${on && vn ? ` style="view-transition-name:${vn}"` : ""}>${hesc(label)}${n != null ? ` <small>${n}</small>` : ""}</button>`;
+  return `<div class="htop">${cats.map(k => chip(hs.cat === k, `data-cat="${hesc(k)}"`, k === "Все" ? "Все разделы" : k, k === "Все" ? all.length : all.filter(d => d.cat === k).length, "selcat")).join("")}</div>` +
+    `<div class="htop">${countries.length > 2 ? countries.map(k => chip(hs.country === k, `data-country="${hesc(k)}"`, k === "Все" ? "Все страны" : k, null, "selcountry")).join("") : ""}${chip(hs.flags, "data-flags", "↑↓ только с отклонениями", null, "selflag")}</div>`;
 }
 function render(){
   const box = q$("#health"); if (!box || box.hidden) return;
@@ -778,9 +778,9 @@ const box = q$("#health");
 if (box){
   box.addEventListener("click", e => {
     const t = e.target;
-    const c = t.closest("[data-cat]"); if (c){ hs.cat = c.dataset.cat; render(); enter(box); return; }
-    const co = t.closest("[data-country]"); if (co){ hs.country = co.dataset.country; render(); enter(box); return; }
-    if (t.closest("[data-flags]")){ hs.flags = !hs.flags; render(); enter(box); return; }
+    const c = t.closest("[data-cat]"); if (c){ hs.cat = c.dataset.cat; vt(() => { render(); enter(box); }); return; }
+    const co = t.closest("[data-country]"); if (co){ hs.country = co.dataset.country; vt(() => { render(); enter(box); }); return; }
+    if (t.closest("[data-flags]")){ hs.flags = !hs.flags; vt(() => { render(); enter(box); }); return; }
     const a = t.closest("[data-act]");
     if (a){
       const k = a.dataset.act;
