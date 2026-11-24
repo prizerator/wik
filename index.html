@@ -34,18 +34,8 @@
   }
 }
 /* раздел «Здоровье»: мягкая сумеречная тема, светлее обычной тёмной, но без яркого света */
-body.light{
-  --bg:#3c3560; --surface:#463e6e; --ink:#ece6f8; --muted:#b9aed3; --line:#5b5086;
-  --accent:#cfa2ee; --accent-ink:#2a2147;
-  --grad:linear-gradient(135deg,#6f86e8 0%,#b36fd0 52%,#e8956a 100%);
-  --stroke:linear-gradient(135deg,#8ed3a3 0%,#d1e49a 100%);
-  --btn:linear-gradient(135deg,#a9c3a6 0%,#c4d1a4 100%); --btn-ink:#26362b; --btn-line:#8aa688;
-  --want:#f0b765; --done:#86d3a6; --want-bg:#574531; --done-bg:#2f4a3e; --danger:#ff8f82; --low-bg:#34426f;
-  color-scheme:dark;
-}
+:root{--stroke:linear-gradient(135deg,#8ed3a3 0%,#d1e49a 100%);--btn:linear-gradient(135deg,#a9c3a6 0%,#c4d1a4 100%);--btn-ink:#26362b;--btn-line:#8aa688;--low-bg:#34426f}
 body.light .lists button[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);box-shadow:inset 0 0 0 1px var(--btn-line)}
-body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(170deg,#4a4378 0%,#54416f 50%,#5f4670 100%);opacity:0;transition:opacity .4s ease}
-body.light::before{opacity:1}
 body *{transition-property:background-color,color,border-color,box-shadow,opacity;transition-duration:.3s}
 /* кнопка сортировки сплющивается при переходе в «Здоровье» */
 #sortBtn{max-width:170px;overflow:hidden;white-space:nowrap;transition:max-width .3s ease,padding .3s ease,margin .3s ease,opacity .2s ease,border-width .3s ease,background-color .3s,color .3s}
@@ -119,10 +109,10 @@ header.searching h1{display:none}
 .colhead{display:none;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--c)}
 .colhead i{font-style:normal;background:var(--cbg);border-radius:999px;padding:1px 9px;font-size:13px}
 .list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px;-webkit-overflow-scrolling:touch}
-.card{position:relative;overflow:hidden;flex-shrink:0;--pw:min(44%,170px);text-align:left;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;display:flex;width:100%;min-height:58px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.card{position:relative;overflow:hidden;flex-shrink:0;--pw:min(38%,140px);text-align:left;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;display:flex;width:100%;min-height:58px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .card.dragging{opacity:.35}
 .cbody{position:relative;z-index:1;flex:1;min-width:0;padding:11px 12px;display:flex;flex-direction:column;gap:6px}
-.card.has-poster .cbody{padding-right:calc(var(--pw) * .62);min-height:104px}
+.card.has-poster .cbody{padding-right:calc(var(--pw) * .62);min-height:84px}
 .poster{position:absolute;top:0;right:0;bottom:0;width:var(--pw);background-size:cover;background-position:center 18%;background-repeat:no-repeat;
   -webkit-mask-image:linear-gradient(100deg,transparent 0%,rgba(0,0,0,.28) 28%,#000 62%);
   mask-image:linear-gradient(100deg,transparent 0%,rgba(0,0,0,.28) 28%,#000 62%);
@@ -249,8 +239,8 @@ const LISTS = [
   {id:"notes", name:"Мысли", st:[{id:"want", label:"Мысли", c:"var(--accent)", bg:"var(--bg)"}], long:true, tiles:true, ph:"Новая мысль…", empty:"Пока пусто. Запиши первую мысль"},
   {id:"wishes", name:"Хотелки", st:[{...ST_WANT, label:"Хочу"}, {...ST_DONE, label:"Куплено"}], poster:true, price:true, link:true, side:true,
     doneBtn:"✓ Куплено", ph:"Что хочу купить…", empty:"Пока пусто. Запиши, что хочешь"},
-  {id:"health", name:"Здоровье", view:"health", st:[{id:"want", label:"Здоровье", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: название, показатель, клиника…", empty:""},
-  {id:"receipts", name:"Чеки", view:"receipts", st:[{id:"want", label:"Чеки", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: что куплено, магазин, дата…", empty:""}
+  {id:"receipts", name:"Чеки", view:"receipts", st:[{id:"want", label:"Чеки", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: что куплено, магазин, дата…", empty:""},
+  {id:"health", name:"Здоровье", view:"health", st:[{id:"want", label:"Здоровье", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: название, показатель, клиника…", empty:""}
 ];
 const DEFAULT_TYPES = ["фильм","сериал","мульт","книга","игра"];
 const TYPE_COLORS = {"фильм":"#e5484d","сериал":"#3e63dd","мульт":"#12a594","книга":"#8e4ec6","игра":"#e93d82"};
@@ -493,6 +483,26 @@ function renderSearch(q){
   }
   b.innerHTML = total ? html : `<div class="empty">Ничего не нашлось</div>`;
 }
+/* палитра плавно меняется слева направо: первые пять вкладок на 35%, «Здоровье» на 100% */
+const THEME_VARS = ["--bg","--surface","--ink","--muted","--line","--accent","--accent-ink","--want","--done","--want-bg","--done-bg","--danger"];
+const THEME_HEALTH = {"--bg":"#3c3560","--surface":"#463e6e","--ink":"#ece6f8","--muted":"#b9aed3","--line":"#5b5086","--accent":"#cfa2ee","--accent-ink":"#2a2147","--want":"#f0b765","--done":"#86d3a6","--want-bg":"#574531","--done-bg":"#2f4a3e","--danger":"#ff8f82"};
+const THEME_PAGE = ["#4a4378","#54416f","#5f4670"], THEME_GRAD = ["#6f86e8","#b36fd0","#e8956a"];
+let themeBase = null;
+const h2r = h => { h = h.replace("#", ""); if (h.length === 3) h = h.split("").map(c => c + c).join(""); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
+const mixc = (a, b, t) => "#" + h2r(a).map((x, i) => Math.round(x + (h2r(b)[i] - x) * t).toString(16).padStart(2, "0")).join("");
+function applyTheme(){
+  const cs = getComputedStyle(document.documentElement);
+  if (!themeBase){ themeBase = {}; THEME_VARS.forEach(v => themeBase[v] = cs.getPropertyValue(v).trim()); themeBase.page = (cs.getPropertyValue("--page").match(/#[0-9a-f]{6}/gi) || THEME_PAGE); themeBase.grad = (cs.getPropertyValue("--grad").match(/#[0-9a-f]{6}/gi) || THEME_GRAD); }
+  const n = LISTS.filter(l => !l.view || l.id !== "health").length;
+  const idx = Math.max(0, LISTS.findIndex(l => l.id === ui.list));
+  const t = ui.list === "health" ? 1 : (n > 1 ? idx / (n - 1) : 0) * 0.35;
+  const st = document.body.style;
+  THEME_VARS.forEach(v => { try { st.setProperty(v, mixc(themeBase[v], THEME_HEALTH[v], t)); } catch(e) {} });
+  const m3 = (a, b, k) => [0, 1, 2].map(i => mixc(a[i], b[i], k));
+  const p = m3(themeBase.page, THEME_PAGE, t), gr = m3(themeBase.grad, THEME_GRAD, t);
+  st.setProperty("--page", `linear-gradient(170deg,${p[0]} 0%,${p[1]} 50%,${p[2]} 100%)`);
+  st.setProperty("--grad", `linear-gradient(135deg,${gr[0]} 0%,${gr[1]} 52%,${gr[2]} 100%)`);
+}
 function vt(fn){ if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches){ try { document.startViewTransition(fn); return; } catch(e) {} } fn(); }
 function enter(el){ if (!el) return; el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter"); clearTimeout(el._en); el._en = setTimeout(() => el.classList.remove("enter"), 900); }
 const VIEWS = {health:{obj:"Health", file:"health.js", name:"Здоровье"}, receipts:{obj:"Receipts", file:"receipts.js", name:"Чеки"}};
@@ -510,7 +520,7 @@ function render(){
   $("#lists").innerHTML = LISTS.map(l => `<button type="button" data-list="${l.id}" aria-pressed="${ui.list===l.id}"${ui.list===l.id ? ' style="view-transition-name:navsel"' : ""}>${l.name}</button>`).join("");
   $("#sortBtn").textContent = ui.sort === "new" ? "Сначала новые" : "Сначала старые";
   const hv = !!c.view;
-  document.body.classList.toggle("light", hv);
+  document.body.classList.toggle("light", c.id === "health"); applyTheme();
   const sq = !hv && ui.q.trim();
   $("#health").hidden = c.view !== "health"; $("#receipts").hidden = c.view !== "receipts"; $("#board").hidden = hv; $("#addbar").hidden = hv || !!sq; $("#sortBtn").classList.toggle("collapsed", hv); $("#sortBtn").tabIndex = hv ? -1 : 0;
   delete $("#board").dataset.search;

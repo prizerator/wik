@@ -34,11 +34,16 @@ css.textContent = `
 .rbtn.sm{padding:4px 9px;font-size:13px}.rbtn.sq{padding:0;width:38px;height:36px;display:inline-flex;align-items:center;justify-content:center}.rbtn.sq.sm{width:34px;height:30px}
 .rform .st{font-size:13px;margin-top:4px}.rform .st.ok{color:var(--done)}.rform .st.err{color:var(--danger)}.rbtn.del{color:var(--danger);border-color:var(--danger)}
 .ryear{font-weight:700;color:var(--muted);margin:16px 0 6px;font-size:14px}
-.rcard{position:relative;overflow:hidden;--pw:min(46%,190px);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px;display:flex;cursor:pointer;text-align:left;width:100%;color:var(--ink);min-height:92px}
-.rcard .poster{filter:blur(1.6px) saturate(1.1);opacity:.9}
-.rcard .bd{position:relative;z-index:1;flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding-right:calc(var(--pw) * .6)}
-.rcard .tt{font-weight:700;overflow-wrap:anywhere}
-.rcard .mt{color:var(--muted);font-size:13px}
+#receipts .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.ryear{grid-column:1/-1}
+.rcard{position:relative;overflow:hidden;height:136px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;text-align:left;width:100%;color:var(--ink)}
+.rcard .poster{position:absolute;top:0;bottom:0;left:0;right:0;width:auto;background-size:cover;background-position:center;-webkit-mask-image:none;mask-image:none;clip-path:none}
+.rcard.ph::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(14,10,30,.9) 0%,rgba(14,10,30,.62) 50%,rgba(14,10,30,.4) 100%)}
+.rcard .bd{position:relative;z-index:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+.rcard .tt{font-weight:700;font-size:14px;line-height:1.2;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rcard .mt{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rcard.ph .tt{color:#fff}.rcard.ph .mt{color:#d9d1ea}
+.rcard.ph .rb{background:rgba(255,255,255,.16);color:#efe9fb}.rcard.ph .rb.ok{background:rgba(95,207,147,.28);color:#aef0c8}.rcard.ph .rb.soon{background:rgba(242,169,59,.3);color:#ffd9a0}
 .rb{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;background:var(--bg);color:var(--muted)}
 .rb.ok{background:var(--done-bg);color:var(--done)}.rb.soon{background:var(--want-bg);color:var(--want)}.rb.end{background:var(--bg);color:var(--muted);text-decoration:line-through}
 mark{background:#e9d58a;color:#2a2147;border-radius:3px}
@@ -139,6 +144,7 @@ function leftText(days){
   if (days < 31) return "ещё " + days + " дн.";
   const m = Math.round(days / 30.4); return m >= 12 ? "ещё " + (Math.floor(m / 12)) + " г." + (m % 12 ? " " + (m % 12) + " мес." : "") : "ещё " + m + " мес.";
 }
+const wShort = d => { const w = warranty(d); if (!w) return ""; const t = w.days < 0 ? "истекла" : w.days < 31 ? w.days + " дн." : w.days < 365 ? Math.round(w.days / 30.4) + " мес." : (Math.round(w.days / 36.5) / 10) + " г."; return `<span class="rb ${w.st}" style="white-space:nowrap">${w.days < 0 ? "истекла" : "ещё " + t}</span>`; };
 const wBadge = d => { const w = warranty(d); return w ? `<span class="rb ${w.st}">гарантия до ${rfmt(w.until)} · ${leftText(w.days)}</span>` : ""; };
 
 /* ---------- список ---------- */
@@ -164,12 +170,13 @@ function render(){
   let html = `<div class="rtop"><button type="button" class="rbtn pri" data-act="add">+ Добавить чек</button><button type="button" class="rbtn sq" data-act="copy" title="Скопировать запрос для Gemini" aria-label="Скопировать запрос для Gemini">${GICON}</button><button type="button" class="rbtn" data-act="bulk">📥 Загрузить пачку фото</button><button type="button" class="rbtn" data-act="sync">⟳</button></div><input type="file" id="rbulk" multiple accept="image/*" hidden>`;
   html += `<div class="rst">${resc(rs.status || "")}</div><div class="rtop">${chip("all", "Все", all.length)}${chip("ok", "Гарантия идёт", n("ok"))}${chip("soon", "Скоро закончится", n("soon"))}${chip("end", "Истекла", n("end"))}</div>`;
   if (!list.length) html += `<div style="color:var(--muted);text-align:center;padding:30px 10px">${all.length ? "Ничего не нашлось" : "Пока пусто. Нажми «Добавить чек» или «Загрузить пачку фото»."}</div>`;
-  let year = "";
+  let year = ""; html += `<div class="rgrid">`;
   list.forEach(d => {
     const y = (d.date || "").slice(0, 4); if (y !== year){ year = y; html += `<div class="ryear">${y}</div>`; }
     const th = d.files && d.files[0] && d.files[0].th;
-    html += `<button type="button" class="rcard" data-open="${resc(d.id)}">${th ? `<span class="poster" style="background-image:url('${th}')"></span>` : ""}<span class="bd"><span class="tt">${hl(d.title)}</span><span class="mt">${rfmt(d.date)}${d.store ? " · " + hl(d.store) : ""}${d.price ? " · " + hl(d.price) : ""}</span><span>${wBadge(d)}${d.files && d.files.length > 1 ? ` <span class="rb">📷 ${d.files.length}</span>` : ""}</span></span></button>`;
+    html += `<button type="button" class="rcard${th ? " ph" : ""}" data-open="${resc(d.id)}">${th ? `<span class="poster" style="background-image:url('${th}')"></span>` : ""}<span class="bd"><span class="tt">${hl(d.title)}</span><span class="mt">${rfmt(d.date)}${d.store ? " · " + hl(d.store) : ""}${d.price ? " · " + hl(d.price) : ""}</span><span>${wShort(d)}${d.files && d.files.length > 1 ? ` <span class="rb">📷 ${d.files.length}</span>` : ""}</span></span></button>`;
   });
+  html += `</div>`;
   box.innerHTML = html;
   q$("#rbulk").onchange = e => { bulkImport([...e.target.files]); e.target.value = ""; };
 }
