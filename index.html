@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; connect-src 'self' https://www.googleapis.com https://accounts.google.com/gsi/ https://*.wikipedia.org https://www.wikidata.org https://openlibrary.org; img-src 'self' data: blob: https:; frame-src blob: https://accounts.google.com/gsi/; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <title>wikivazr</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
@@ -35,7 +37,7 @@
 [hidden]{display:none!important}
 .lists{display:flex;gap:6px;padding:0 16px 8px;overflow-x:auto;scrollbar-width:none}
 .lists::-webkit-scrollbar{display:none}
-.lists button{flex:1;white-space:nowrap;border:0;border-radius:12px;padding:9px 10px;background:var(--surface);color:var(--muted);font-weight:600;font-size:14px;box-shadow:inset 0 0 0 1px var(--line)}
+.lists button{flex:1;white-space:nowrap;border:0;border-radius:12px;padding:9px 6px;background:var(--surface);color:var(--muted);font-weight:600;font-size:13.5px;box-shadow:inset 0 0 0 1px var(--line)}
 .lists button[aria-pressed="true"]{background:var(--grad);color:#fff;box-shadow:none}
 a.tag{text-decoration:none}
 .cn.long{white-space:pre-wrap}
@@ -45,7 +47,7 @@ body.is-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-#app{height:100%;display:flex;flex-direction:column;max-width:1100px;margin:0 auto;padding-top:env(safe-area-inset-top)}
+#app{height:100%;display:flex;flex-direction:column;max-width:1180px;margin:0 auto;padding-top:env(safe-area-inset-top)}
 header{display:flex;align-items:center;gap:8px;padding:14px 16px 8px}
 h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spacing:-.01em}
 .iconbtn{display:inline-flex;align-items:center;justify-content:center;padding:7px 9px}
@@ -57,7 +59,9 @@ h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spaci
 #syncDot[data-s="err"]{background:var(--danger)}
 #syncDot[data-s="auth"]{background:var(--want);box-shadow:0 0 0 3px var(--want-bg)}
 .tools{padding:0 16px;display:flex;flex-direction:column;gap:8px}
-#q{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+header #q{flex:1;min-width:0;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);transform-origin:right center;animation:qin .18s ease-out}
+@keyframes qin{from{opacity:0;transform:scaleX(.25)}}
+header.searching h1{display:none}
 .chips{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 4px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:6px 12px;font-size:14px}
@@ -99,7 +103,7 @@ h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spaci
 .ghost{position:fixed;left:0;top:0;z-index:30;pointer-events:none;box-shadow:0 12px 30px rgba(0,0,0,.28)}
 .drop{outline:2px dashed var(--accent);outline-offset:2px}
 .col.drop{background:color-mix(in srgb,var(--accent) 8%,transparent)}
-#addbar{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line)}
+#addbar{display:flex;gap:8px;padding:10px;margin:0 12px calc(10px + env(safe-area-inset-bottom));background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
 #addType{flex:none;max-width:34%;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:0 8px}
 #addText{flex:1;min-width:0;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg)}
 #addbar .go{flex:none;border:0;border-radius:12px;background:var(--grad);color:var(--accent-ink);font-weight:700;font-size:22px;padding:0 18px}
@@ -132,6 +136,22 @@ h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spaci
 .btn.del{flex:none;background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:600;padding:12px 14px}
 .btn.del[data-armed="1"]{border-color:var(--danger);color:var(--danger)}
 .status{font-size:13.5px;padding:8px 10px;border-radius:10px;background:var(--bg);overflow-wrap:anywhere}
+.tag.lst{background:var(--grad);color:#fff}
+.colhead.show{display:flex}
+.list.tl{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));grid-auto-rows:200px;align-content:start;gap:12px;overflow-y:auto}
+.list.tl .card{height:100%;min-height:0;flex-direction:column}
+.list.tl .cbody{overflow:hidden;min-height:0}
+.list.tl .cn{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap}
+.list.tl .meta{margin-top:auto}
+.card.side{--pw:min(30%,110px)}
+.card.side .poster{right:150px}
+.card.side .cbody{min-width:0}
+.sideacts{display:flex;gap:6px;padding:8px;flex:none;position:relative;z-index:1}
+.sq{width:64px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11.5px;font-weight:600;padding:6px 2px;line-height:1.1}
+.sq b{font-size:20px;line-height:1;font-weight:600}
+.sq.ok{color:var(--done);border-color:var(--done)}
+.sq:hover{background:var(--surface)}
+@media (max-width:700px){header.searching #sortBtn{display:none}}
 @media (min-width:820px){
   .tabs{display:none}
   #board{grid-template-columns:repeat(var(--n,2),1fr);gap:18px;padding-top:12px}
@@ -146,6 +166,7 @@ h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spaci
 <div id="app">
   <header>
     <h1>wikivazr</h1>
+    <input id="q" type="search" hidden placeholder="Поиск по всей базе" autocomplete="off">
     <button id="syncDot" type="button" aria-label="Состояние синхронизации" data-s="off"></button>
     <button class="ghostbtn iconbtn" id="searchBtn" type="button" aria-label="Поиск"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
     <button class="ghostbtn" id="sortBtn" type="button"></button>
@@ -153,7 +174,6 @@ h1{font-size:22px;font-weight:700;margin:0;flex:1;text-wrap:balance;letter-spaci
   </header>
   <nav class="lists" id="lists"></nav>
   <div class="tools">
-    <input id="q" type="search" hidden placeholder="Поиск по названию и заметкам" autocomplete="off">
     <div class="chips" id="chips"></div>
   </div>
   <nav class="tabs" id="tabs" role="tablist"></nav>
@@ -184,8 +204,8 @@ const LISTS = [
     now:"Сейчас смотрю / читаю", nowBadge:"сейчас", doneBtn:"✓ Готово", ph:"Добавить…", empty:"Пока пусто. Добавь запись внизу или открой «Ещё» → импорт из Notion"},
   {id:"plans", name:"Затеи", st:[{...ST_WANT, label:"Хочу"}, {...ST_DONE, label:"Сделано"}], due:true,
     now:"Делаю сейчас", nowBadge:"делаю", doneBtn:"✓ Сделано", ph:"Что хочу сделать…", empty:"Пока пусто. Запиши, что хочешь сделать"},
-  {id:"notes", name:"Мысли", st:[{id:"want", label:"Мысли", c:"var(--accent)", bg:"var(--bg)"}], long:true, ph:"Новая мысль…", empty:"Пока пусто. Запиши первую мысль"},
-  {id:"wishes", name:"Хотелки", st:[{...ST_WANT, label:"Хочу"}, {...ST_DONE, label:"Куплено"}], poster:true, price:true, link:true,
+  {id:"notes", name:"Мысли", st:[{id:"want", label:"Мысли", c:"var(--accent)", bg:"var(--bg)"}], long:true, tiles:true, ph:"Новая мысль…", empty:"Пока пусто. Запиши первую мысль"},
+  {id:"wishes", name:"Хотелки", st:[{...ST_WANT, label:"Хочу"}, {...ST_DONE, label:"Куплено"}], poster:true, price:true, link:true, side:true,
     doneBtn:"✓ Куплено", ph:"Что хочу купить…", empty:"Пока пусто. Запиши, что хочешь"},
   {id:"health", name:"Здоровье", view:"health", st:[{id:"want", label:"Здоровье", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: название, показатель, клиника…", empty:""}
 ];
@@ -288,7 +308,7 @@ function loadGIS(){
   });
   return gisPromise;
 }
-function getToken(interactive){
+function getToken(interactive, silent){
   if (tokenValid()) return Promise.resolve(token);
   if (!interactive) return Promise.reject(new Error("auth"));
   return new Promise(async (resolve, reject) => {
@@ -303,7 +323,7 @@ function getToken(interactive){
         },
         error_callback: e => reject(new Error((e && e.type) || "popup"))
       });
-      tc.requestAccessToken({prompt: interactive ? "" : "none"});
+      tc.requestAccessToken({prompt: silent ? "none" : interactive ? "" : "none"});
     } catch(e) { reject(e); }
   });
 }
@@ -383,8 +403,8 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 window.addEventListener("online", syncIfStale);
 
 /* ---------- render ---------- */
-function cardHtml(i){
-  const c = L(), s = stById(i.status);
+function cardHtml(i, showList){
+  const c = LISTS.find(x => x.id === (i.list || "media")) || LISTS[0], s = c.st.find(x => x.id === i.status) || c.st[0];
   const tags = c.types ? (i.types || []).map(t => `<span class="tag">${dot(t)}${esc(t)}</span>`).join("") : "";
   const note = i.note ? `<div class="cn${c.long ? " long" : ""}">${esc(i.note)}</div>` : "";
   const rating = c.rating && i.status === "done" && i.rating ? `<span class="stars" aria-label="Оценка ${i.rating} из 5">${stars(i.rating)}</span>` : "";
@@ -392,14 +412,39 @@ function cardHtml(i){
   const due = c.due && i.due ? `<span class="tag">до ${fmtDate(i.due)}</span>` : "";
   const price = c.price && i.price ? `<span class="tag">${esc(i.price)}</span>` : "";
   const link = c.link && /^https?:\/\//i.test(i.link || "") ? `<a class="tag" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">🔗 ссылка</a>` : "";
-  const acts = i.status === "want" && (c.now || c.doneBtn)
+  const lst = showList ? `<span class="tag lst">${esc(c.name)}</span>` : "";
+  const side = c.side && i.status === "want"
+    ? `<div class="sideacts"><button class="sq ok" type="button" data-done="${i.id}"><b>✓</b>Куплено</button><button class="sq" type="button" data-drop="${i.id}"><b>✕</b>Расхотеть</button></div>` : "";
+  const acts = !c.side && i.status === "want" && (c.now || c.doneBtn)
     ? `<div class="acts">${c.now ? `<button class="act${i.now?" on":""}" type="button" data-now="${i.id}">${i.now ? "Сейчас ●" : "▶ Сейчас"}</button>` : ""}${c.doneBtn ? `<button class="act ok" type="button" data-done="${i.id}">${c.doneBtn}</button>` : ""}</div>` : "";
   const poster = i.poster ? `<div class="poster" style="background-image:url('${cssUrl(i.poster)}')"></div>` : "";
-  return `<article class="card${i.poster?" has-poster":""}" tabindex="0" role="button" data-id="${i.id}" style="--c:${s.c}">
+  return `<article class="card${i.poster?" has-poster":""}${side?" side":""}" tabindex="0" role="button" data-id="${i.id}" style="--c:${s.c}">
     ${poster}<div class="cbody"><div class="ct">${esc(i.title)}</div>${note}
-    <div class="meta">${nowb}${tags}${due}${price}${link}${rating}<span class="date">${fmtDate(i.created)}</span></div>${acts}</div></article>`;
+    <div class="meta">${lst}${nowb}${tags}${due}${price}${link}${rating}<span class="date">${fmtDate(i.created)}</span></div>${acts}</div>${side}</article>`;
 }
 
+function healthDocs(){ try { const v = JSON.parse(localStorage.getItem("wiki-health")); return v && Array.isArray(v.docs) ? v.docs.filter(d => !d.deleted) : []; } catch(e) { return []; } }
+function renderSearch(q){
+  const ql = q.toLowerCase().replace(/ё/g, "е"), nz = t => String(t || "").toLowerCase().replace(/ё/g, "е");
+  $("#chips").hidden = true; $("#tabs").hidden = true;
+  const b = $("#board"); b.dataset.search = "1"; b.style.setProperty("--n", 1);
+  const terms = ql.split(/\s+/).filter(Boolean);
+  const hit = t => { const h = nz(t); return terms.every(w => h.includes(w)); };
+  let html = "", total = 0;
+  for (const c of LISTS){
+    if (c.view) continue;
+    const found = live().filter(i => inList(i, c.id) && hit([i.title, i.note, i.price, i.link, (i.types || []).join(" ")].join(" ")))
+      .sort((a, b) => (b.created || "") < (a.created || "") ? -1 : 1);
+    if (!found.length) continue; total += found.length;
+    html += `<section class="col active" style="--c:var(--accent);--cbg:var(--bg)"><div class="colhead show">${esc(c.name)}<i>${found.length}</i></div><div class="list${c.tiles ? " tl" : ""}">${found.map(i => cardHtml(i, false)).join("")}</div></section>`;
+  }
+  const hd = healthDocs().filter(d => hit([d.title, d.org, d.note, d.tags, d.cat, (d.values || []).map(v => v[0]).join(" ")].join(" ")));
+  if (hd.length){
+    total += hd.length;
+    html += `<section class="col active" style="--c:var(--accent);--cbg:var(--bg)"><div class="colhead show">Здоровье<i>${hd.length}</i></div><div class="list">` + hd.map(d => `<article class="card" tabindex="0" role="button" data-health="${esc(d.id)}" style="--c:var(--accent)"><div class="cbody"><div class="ct">${esc(d.title)}</div><div class="meta"><span class="tag">${esc(d.cat || "")}</span><span class="date">${esc((d.date || "").split("-").reverse().join("."))}</span></div></div></article>`).join("") + `</div></section>`;
+  }
+  b.innerHTML = total ? html : `<div class="empty">Ничего не нашлось</div>`;
+}
 function loadHealth(){
   if (window.Health){ Health.render(); return; }
   if (loadHealth.s) return; loadHealth.s = true;
@@ -413,9 +458,12 @@ function render(){
   $("#lists").innerHTML = LISTS.map(l => `<button type="button" data-list="${l.id}" aria-pressed="${ui.list===l.id}">${l.name}</button>`).join("");
   $("#sortBtn").textContent = ui.sort === "new" ? "Сначала новые" : "Сначала старые";
   const hv = c.view === "health";
-  $("#health").hidden = !hv; $("#board").hidden = hv; $("#addbar").hidden = hv; $("#sortBtn").hidden = hv;
+  const sq = !hv && ui.q.trim();
+  $("#health").hidden = !hv; $("#board").hidden = hv; $("#addbar").hidden = hv || !!sq; $("#sortBtn").hidden = hv;
+  delete $("#board").dataset.search;
   $("#q").placeholder = hv ? c.ph : "Поиск по названию и заметкам";
   if (hv){ $("#chips").hidden = true; $("#tabs").hidden = true; loadHealth(); return; }
+  if (sq){ renderSearch(sq); return; }
   $("#chips").hidden = !c.types; $("#addType").hidden = !c.types; $("#tabs").hidden = c.st.length < 2;
   $("#addText").placeholder = c.ph;
   $("#board").style.setProperty("--n", c.st.length); $("#tabs").style.setProperty("--n", c.st.length);
@@ -435,9 +483,9 @@ function render(){
   $("#board").innerHTML = c.st.map(s => {
     const list = visible(s.id);
     const msg = none ? c.empty : "Здесь пока пусто";
-    const body = list.length ? list.map(cardHtml).join("") : `<div class="empty">${msg}</div>`;
+    const body = list.length ? list.map(i => cardHtml(i)).join("") : `<div class="empty">${msg}</div>`;
     return `<section class="col${ui.tab===s.id?" active":""}" data-col="${s.id}" style="--c:${s.c};--cbg:${s.bg}">
-      <div class="colhead">${s.label}<i>${list.length}</i></div><div class="list">${body}</div></section>`;
+      <div class="colhead">${s.label}<i>${list.length}</i></div><div class="list${c.tiles ? " tl" : ""}">${body}</div></section>`;
   }).join("");
 }
 
@@ -681,7 +729,7 @@ function openSettings(){
   const go = $("#gOut");
   if (go) go.onclick = () => {
     try { if (token && window.google) google.accounts.oauth2.revoke(token, () => {}); } catch(e) {}
-    token = null; try { localStorage.removeItem("wiki-tok"); } catch(e) {} g.signedIn = false; g.fileId = ""; saveG(); setSync("off", "Вышел из Google"); closeOverlay();
+    token = null; try { localStorage.removeItem("wiki-tok"); localStorage.removeItem("wiki-health"); localStorage.removeItem("wiki-health-g"); } catch(e) {} g.signedIn = false; g.fileId = ""; saveG(); setSync("off", "Вышел из Google"); closeOverlay();
   };
   $("#cImp").onclick = () => $("#cFile").click();
   $("#cFile").onchange = async e => {
@@ -749,7 +797,7 @@ function applyDrop(id, t){
 $("#board").addEventListener("pointerdown", e => {
   if (e.pointerType === "mouse" && e.button !== 0) return;
   const card = e.target.closest(".card");
-  if (!card || e.target.closest("button, a")) return;
+  if (!card || e.target.closest("button, a") || $("#board").dataset.search) return;
   drag = {id:card.dataset.id, card, x:e.clientX, y:e.clientY, pid:e.pointerId, ptype:e.pointerType, started:false};
   if (e.pointerType !== "mouse") drag.timer = setTimeout(beginDrag, 380);
 });
@@ -786,7 +834,7 @@ $("#overlay").addEventListener("click", e => { if (e.target.id === "overlay") cl
 document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#overlay").classList.contains("open")) closeOverlay(); });
 $("#lists").addEventListener("click", e => {
   const b = e.target.closest("[data-list]"); if (!b) return;
-  ui.list = b.dataset.list; ui.tab = "want"; ui.type = ""; ui.q = ""; $("#q").value = ""; $("#q").hidden = true; $("#searchBtn").classList.remove("on");
+  ui.list = b.dataset.list; ui.tab = "want"; ui.type = ""; ui.q = ""; $("#q").value = ""; $("#q").hidden = true; $("#searchBtn").classList.remove("on"); document.querySelector("header").classList.remove("searching");
   try { localStorage.setItem("wiki-list", ui.list); } catch(err) {}
   render();
   if (ui.list === "health" && window.Health) Health.open();
@@ -806,14 +854,18 @@ $("#board").addEventListener("click", e => {
   if (nb){ const it = items.find(x => x.id === nb.dataset.now); if (it){ it.now = !it.now; touch(it); save(); render(); toast(it.now ? "Отмечено: сейчас" : "Снято"); } return; }
   const db = e.target.closest("[data-done]");
   if (db){ const it = items.find(x => x.id === db.dataset.done); if (it){ markDone(it); save(); render(); afterDone(it); } return; }
-  const c = e.target.closest("[data-id]"); if (c) openEdit(c.dataset.id);
+  const dr = e.target.closest("[data-drop]");
+  if (dr){ const it = items.find(x => x.id === dr.dataset.drop); if (it){ it.deleted = true; touch(it); save(); render(); toast("Убрано: " + it.title); } return; }
+  const hh = e.target.closest("[data-health]");
+  if (hh){ ui.list = "health"; try { localStorage.setItem("wiki-list", ui.list); } catch(err) {} render(); return; }
+  const c = e.target.closest("[data-id]"); if (c){ const it = items.find(x => x.id === c.dataset.id); if (it && ui.list !== (it.list || "media")) ui.list = it.list || "media"; openEdit(c.dataset.id); }
 });
 $("#board").addEventListener("keydown", e => {
   if (e.key !== "Enter" && e.key !== " ") return;
   const c = e.target.closest(".card"); if (c && e.target === c){ e.preventDefault(); openEdit(c.dataset.id); }
 });
 function setSearch(open){
-  const q = $("#q"); q.hidden = !open;
+  const q = $("#q"); q.hidden = !open; document.querySelector("header").classList.toggle("searching", open);
   if (open) q.focus(); else { q.value = ""; ui.q = ""; render(); }
   $("#searchBtn").classList.toggle("on", open);
 }
@@ -849,6 +901,14 @@ $("#addbar").addEventListener("submit", e => {
   try { history.replaceState(null, "", location.pathname); } catch(e) {}
   setTimeout(() => toast("Добавлено из «Поделиться»"), 400);
 })();
+
+// вход Google держится ровно час (так устроен Google без сервера): первое касание после истечения тихо обновляет его
+let lastRefresh = 0;
+document.addEventListener("pointerdown", e => {
+  if (!g.signedIn || tokenValid() || Date.now() - lastRefresh < 600000 || e.target.closest("#syncDot")) return;
+  lastRefresh = Date.now();
+  getToken(true, true).then(() => { doSync(false); if (window.Health) Health.sync(); }).catch(() => {});
+}, true);
 
 if ("serviceWorker" in navigator){
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));

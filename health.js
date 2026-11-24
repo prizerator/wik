@@ -58,19 +58,21 @@ css.textContent = `
 .htrend .pt{background:var(--bg);border-radius:8px;padding:1px 7px}
 .htrend .pt.H{color:var(--want)}.htrend .pt.L{color:#2a5bd7}
 mark{background:#ffe58a;color:inherit;border-radius:3px}
-.hmodal{position:fixed;inset:0;z-index:40;background:var(--bg);display:none;flex-direction:column}
+.hmodal{position:fixed;inset:0;z-index:40;background:rgba(8,10,14,.6);display:none;align-items:center;justify-content:center}
+.hpanel{background:var(--bg);display:flex;flex-direction:column;width:100%;height:100%;min-height:0}
+#hview .hmh,#hview .hmb{width:100%}#hview{background:var(--bg);flex-direction:column;align-items:stretch;justify-content:flex-start}
+@media (min-width:700px){.hpanel{max-width:780px;height:auto;max-height:92vh;border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.45);border:1px solid var(--line)}}
 .hmodal.on{display:flex}
 .hmh{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface)}
 .hmh .t{flex:1;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.hmb{flex:1;min-height:0;overflow:auto;padding:12px 14px calc(14px + env(safe-area-inset-bottom))}
-.hgrid{display:grid;grid-template-columns:1fr;gap:12px}
-@media (min-width:900px){.hgrid{grid-template-columns:minmax(300px,420px) 1fr;height:100%}.hgrid>div{min-height:0;overflow:auto}}
+.hmb{flex:1 1 auto;min-height:0;overflow:auto;padding:12px 14px calc(14px + env(safe-area-inset-bottom))}
+.hgrid{display:flex;flex-direction:column;gap:14px}
 .hmeta{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:14px;margin-bottom:8px}
 .hmeta .k{color:var(--muted)}
 .hptabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .hptabs .on{background:var(--grad);color:#fff;border-color:transparent}
-.hpv{border:1px solid var(--line);border-radius:12px;background:var(--surface);min-height:50vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.hpv iframe{width:100%;height:72vh;border:0;background:#fff}
+.hpv{border:1px solid var(--line);border-radius:12px;background:var(--surface);min-height:30vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.hpv iframe{width:100%;height:62vh;border:0;background:#fff}
 .hpv img{max-width:100%;max-height:72vh;cursor:zoom-in}
 .hform{display:flex;flex-direction:column;gap:10px;max-width:640px;margin:0 auto}
 .hform label{font-size:13px;color:var(--muted);display:block;margin-bottom:3px}
@@ -243,7 +245,7 @@ function chips(){
 function render(){
   const box = q$("#health"); if (!box || box.hidden) return;
   const list = filtered();
-  let html = `<div class="htop"><button type="button" class="hbtn pri" data-act="add">+ Добавить документ</button><button type="button" class="hbtn" data-act="copy">📋 Запрос для Gemini</button><button type="button" class="hbtn" data-act="import">📁 Подключить старую Медкарту</button><button type="button" class="hbtn" data-act="sync">⟳</button></div>`;
+  let html = `<div class="htop"><button type="button" class="hbtn pri" data-act="add">+ Добавить документ</button><button type="button" class="hbtn" data-act="copy">📋 Запрос для Gemini</button><button type="button" class="hbtn" data-act="import">📁 Подключить старую Медкарту</button><button type="button" class="hbtn" data-act="verify">✔ Проверить перенос</button><button type="button" class="hbtn" data-act="sync">⟳</button></div>`;
   html += `<div class="hst">${hesc(hs.status || "")}</div>` + chips() + trend(list);
   if (!list.length) html += `<div class="empty" style="color:var(--muted);text-align:center;padding:30px 10px">${docs().length ? "Ничего не нашлось" : "Пока пусто. Нажми «Добавить документ» или перенеси старую Медкарту."}</div>`;
   let year = "";
@@ -303,10 +305,10 @@ function openDoc(d){
   docOpen = d;
   const meta = [["Дата", hfmt(d.date)], ["Раздел", d.cat], ["Клиника", d.org], ["Врач", d.doctor], ["Страна", d.country], ["Язык оригинала", d.lang && d.lang !== "—" ? d.lang : ""], ["Метки", d.tags]].filter(x => x[1]).map(x => `<div class="k">${x[0]}</div><div>${hesc(x[1])}</div>`).join("");
   const m = q$("#hdoc");
-  m.innerHTML = `<div class="hmh"><div class="t">${hesc(d.title)}</div><button type="button" class="hbtn sm" id="hdx">✕</button></div><div class="hmb"><div class="hgrid"><div>
-    <div class="hmeta">${meta}</div>${d.note ? `<div class="hnote" style="margin-bottom:8px">${hesc(d.note)}</div>` : ""}${valTable(d, false)}
-    <div class="hatt" style="margin-top:10px"><span class="lbl">Вложения</span>${fileBtns(d)}</div><div class="htools" style="margin-top:8px">${toolBtns(d, false)}</div>
-    </div><div><div class="hptabs" id="hptabs"></div><div class="hpv" id="hpv"></div></div></div></div>`;
+  m.innerHTML = `<div class="hpanel"><div class="hmh"><div class="t">${hesc(d.title)}</div><button type="button" class="hbtn sm" id="hdx">✕</button></div><div class="hmb"><div class="hgrid">
+    <div><div class="hmeta">${meta}</div>${d.note ? `<div class="hnote" style="margin-bottom:8px">${hesc(d.note)}</div>` : ""}${valTable(d, false)}</div>
+    <div><div class="hatt"><span class="lbl">Вложения</span>${fileBtns(d)}</div><div class="htools" style="margin-top:8px">${toolBtns(d, false)}</div></div>
+    <div><div class="hptabs" id="hptabs"></div><div class="hpv" id="hpv"></div></div></div></div></div>`;
   m.classList.add("on");
   q$("#hdx").onclick = () => { closeM("#hdoc"); docOpen = null; };
   const prev = (d.files || []).map((f, i) => ({f, i})).filter(x => x.f.kind !== "dicom").sort((a, b) => rank(a.f) - rank(b.f));
@@ -540,7 +542,7 @@ function openEdit(d){
   editing = d || null; pending = []; gem = null;
   const m = q$("#hedit");
   const o = (arr, v) => arr.map(x => `<option${x === v ? " selected" : ""}>${hesc(x)}</option>`).join("");
-  m.innerHTML = `<div class="hmh"><div class="t">${d ? "Изменить: " + hesc(d.title) : "Новый документ"}</div><button type="button" class="hbtn sm" id="hex">✕</button></div>
+  m.innerHTML = `<div class="hpanel"><div class="hmh"><div class="t">${d ? "Изменить: " + hesc(d.title) : "Новый документ"}</div><button type="button" class="hbtn sm" id="hex">✕</button></div>
   <div class="hmb"><form class="hform" id="heForm" autocomplete="off">
     <div class="hdrop"><div id="hflist" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;text-align:left"></div>
       <button type="button" class="hbtn pri" id="hpick">📷 Фото или PDF</button> <span style="font-size:13px">или перетащи файлы сюда, или Ctrl+V</span>
@@ -556,7 +558,7 @@ function openEdit(d){
     <div><label>Заметка</label><textarea name="note"></textarea></div>
     <div><label>Показатели (по строке: название ; значение ; ед. ; норма ; H/L)</label><textarea name="values" style="min-height:110px;font-family:ui-monospace,monospace;font-size:13px"></textarea></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${d ? `<button type="button" class="hbtn del" id="hdel">Удалить</button>` : ""}<span style="flex:1"></span><button type="button" class="hbtn" id="hcancel">Отмена</button><button type="submit" class="hbtn pri" id="hsubmit">Сохранить</button></div>
-  </form></div>`;
+  </form></div></div>`;
   const f = q$("#heForm");
   f.date.value = d ? d.date : new Date().toISOString().slice(0, 10);
   f.title.value = d ? d.title : ""; f.org.value = d ? (d.org || "") : ""; f.tags.value = d ? (d.tags || "") : ""; f.note.value = d ? (d.note || "") : "";
@@ -721,6 +723,52 @@ async function importFolder(){
   }
 }
 
+
+async function countDir(h){ let n = 0, sz = 0; for await (const [, e] of h.entries()){ if (e.kind === "directory"){ const r = await countDir(e); n += r.n; sz += r.sz; } else { n++; sz += (await e.getFile()).size; } } return {n, sz}; }
+async function verifyImport(){
+  if (!window.showDirectoryPicker){ toast("Проверка работает в Chrome или Edge на компьютере"); return; }
+  try {
+    const dir = await window.showDirectoryPicker({id:"medkarta", mode:"read"});
+    let old; try { const t = await (await (await dir.getFileHandle("db.js")).getFile()).text(); old = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1)); } catch(e) { toast("В этой папке нет db.js"); return; }
+    const tk = await getToken(true);
+    const refs = new Set(), problems = []; let ok = 0, total = 0;
+    const mine = new Map(H.docs.map(d => [d.id, d]));
+    for (const od of old.docs){
+      const d = mine.get(od.id);
+      if (!d || d.deleted){ problems.push("Документ не перенесён: " + od.date + " " + od.title); continue; }
+      for (const of of (od.files || [])){
+        total++; refs.add(of.path);
+        const nf = (d.files || []).find(x => x.path === of.path || (x.name && of.path.endsWith("/" + x.name)) || x.label === of.label && x.kind === of.kind);
+        const x = (d.files || []).find(y => y.path === of.path);
+        progress("Проверяю: " + total);
+        if (!x || !x.fid){ problems.push("Нет на Диске: " + of.path); continue; }
+        try {
+          const meta = await (await drive(DRV + "/" + x.fid + "?fields=size,trashed,name", {}, tk)).json();
+          if (meta.trashed){ problems.push("В корзине: " + of.path); continue; }
+          const seg = of.path.split("/"); let hh = dir;
+          if (of.kind === "dicom"){
+            for (const s of seg) hh = await hh.getDirectoryHandle(s);
+            const c = await countDir(hh);
+            if (+meta.size < c.sz) problems.push("Архив меньше исходных снимков (" + c.n + " файлов): " + of.path); else ok++;
+          } else {
+            for (const s of seg.slice(0, -1)) hh = await hh.getDirectoryHandle(s);
+            const fl = await (await hh.getFileHandle(seg[seg.length - 1])).getFile();
+            if (+meta.size !== fl.size) problems.push("Размер не совпал: " + of.path); else ok++;
+          }
+        } catch(e) { problems.push("Не удалось проверить: " + of.path + " (" + e.message + ")"); }
+      }
+    }
+    // файлы в папке, на которые нет ссылок в базе
+    const extra = [];
+    async function scan(h, p){ for await (const [n, e] of h.entries()){ const path = p ? p + "/" + n : n; if (e.kind === "directory"){ if (![...refs].some(r => r === path || r.startsWith(path + "/") && false)) await scan(e, path); } else if (!refs.has(path) && !/^(db\.js|Медкарта\.html|Как добавлять)/.test(n)) extra.push(path); } }
+    for (const c of (old.cats || [])){ try { await scan(await dir.getDirectoryHandle(c), c); } catch(e) {} }
+    progress("");
+    const m = q$("#hview");
+    m.innerHTML = `<div class="hmh"><div class="t">Проверка переноса</div><button type="button" class="hbtn sm" id="hvx">✕</button></div><div class="hmb"><div class="hform"><div class="st ${problems.length ? "err" : "ok"}">Файлов в базе: ${total}, совпало с Диском: ${ok}. ${problems.length ? "Проблем: " + problems.length : "Всё на месте."}</div>${problems.length ? `<div>${problems.map(p => `<div class="hnote">• ${hesc(p)}</div>`).join("")}</div>` : ""}${extra.length ? `<div class="st">В папке есть файлы, которых нет в базе (${extra.length}):</div>${extra.map(p => `<div class="hnote">• ${hesc(p)}</div>`).join("")}` : `<div class="st ok">Лишних файлов в папке нет.</div>`}</div></div>`;
+    m.classList.add("on"); q$("#hvx").onclick = () => closeM("#hview");
+  } catch(err) { progress(""); if (err && err.name === "AbortError") return; toast("Не получилось: " + (err.message === "auth" ? "нужно войти в Google" : err.message)); }
+}
+
 /* ---------- события ---------- */
 const box = q$("#health");
 if (box){
@@ -733,7 +781,7 @@ if (box){
     if (a){
       const k = a.dataset.act;
       if (k === "add") openEdit(null); else if (k === "copy") copyPrompt(); else if (k === "import") importFolder();
-      else if (k === "sync") hSync(true);
+      else if (k === "sync") hSync(true); else if (k === "verify") verifyImport();
       return;
     }
     const op = t.closest("[data-open]"); if (op){ const d = H.docs.find(x => x.id === op.dataset.open); if (d) openDoc(d); return; }
@@ -744,6 +792,7 @@ if (box){
 }
 q$("#hdoc").addEventListener("click", e => {
   const t = e.target, d = docOpen; if (!d) return;
+  if (t.id === "hdoc"){ closeM("#hdoc"); docOpen = null; return; }
   const ed = t.closest("[data-edit]"); if (ed){ closeM("#hdoc"); openEdit(d); return; }
   const mg = t.closest("[data-merge]"); if (mg){ mergeExisting(d); return; }
   const fb = t.closest(".hatt [data-f]"); if (fb) openViewer(d, d.files[+fb.dataset.f]);
