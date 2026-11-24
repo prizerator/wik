@@ -208,7 +208,7 @@ function fileBtns(d){
   return (d.files || []).map((f, i) => {
     const icon = f.kind === "dicom" ? "🗂" : f.kind === "extra" ? "🖼" : /\.(pdf|html?)$/i.test(f.name || f.path || "") ? "📄" : "📷";
     const num = (f.label || "").match(/\d+$/), pg = (f.label || "").match(/\((\d+) стр\.\)/);
-    const label = f.kind === "orig" ? "Оригинал" + (num ? " " + num[0] : "") + (pg ? " · " + pg[1] + " стр." : "") : f.kind === "tr" ? "Перевод" : (f.label || "Файл");
+    const label = f.kind === "orig" ? "Оригинал" + (num ? " " + num[0] : "") + (pg ? " · " + pg[1] + " стр." : "") : f.kind === "tr" ? "Перевод" : f.kind === "dicom" ? "Снимки (ZIP)" : (f.label || "Файл");
     return `<button type="button" class="hf" data-f="${i}">${icon} ${hesc(label)}${f.lang && f.kind !== "extra" ? `<small>${hesc(f.lang)}</small>` : ""}</button>`;
   }).join("");
 }
@@ -315,7 +315,11 @@ function openDoc(d){
   if (prev.length) showPreview(d, prev, 0); else q$("#hpv").innerHTML = `<div style="padding:20px;color:var(--muted)">Нет файлов для просмотра</div>`;
 }
 async function openViewer(d, f){
-  if (f.kind === "dicom"){ toast("Снимки остаются на компьютере: папка «МРТ снимки (DICOM)». Открой их в RadiAnt или MicroDicom."); return; }
+  if (f.kind === "dicom" && f.fid){
+    try { const u = await fileUrl(f), a = document.createElement("a"); a.href = u; a.download = f.name || "dicom.zip"; document.body.appendChild(a); a.click(); a.remove(); toast("Скачиваю архив со снимками: распакуй и открой в RadiAnt или MicroDicom"); }
+    catch(e) { toast(e.message === "auth" ? needAuthMsg : "Не получилось: " + e.message); }
+    return;
+  }
   if (!f.fid){ toast("Этот файл не загружен на Диск"); return; }
   viewing = {d, f};
   const v = q$("#hview"); const img = isImgPath(f.name || f.path);
@@ -637,18 +641,26 @@ async function saveDoc(e){
 }
 
 /* ---------- перенос старой Медкарты ---------- */
-const nameCache = new Map();
-async function findOnDrive(tk, name, parentName){
-  const q = "name='" + name.replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "' and trashed=false and mimeType!='application/vnd.google-apps.folder'";
-  const r = await (await drive("drive/v3/files?q=" + encodeURIComponent(q) + "&pageSize=20&fields=files(id,parents)", {}, tk)).json();
-  const fs = r.files || []; if (!fs.length) return "";
-  if (fs.length === 1 || !parentName) return fs[0].id;
+const crcT = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = u => { let c = ~0; for (let i = 0; i < u.length; i++) c = crcT[(c ^ u[i]) & 255] ^ (c >>> 8); return ~c >>> 0; };
+async function walk(h, prefix, out){ for await (const [n, e] of h.entries()){ if (e.kind === "directory") await walk(e, prefix + n + "/", out); else out.push({name:prefix + n, file:await e.getFile()}); } }
+async function zipDir(h){
+  const fs = []; await walk(h, "", fs);
+  const enc = new TextEncoder(), parts = [], cen = []; let off = 0, cl = 0;
   for (const f of fs){
-    const p = f.parents && f.parents[0]; if (!p) continue;
-    if (!nameCache.has(p)){ try { nameCache.set(p, (await jget(DRV + "/" + p + "?fields=name", tk)).name); } catch(e) { nameCache.set(p, ""); } }
-    if (nameCache.get(p) === parentName) return f.id;
+    const data = new Uint8Array(await f.file.arrayBuffer()), nm = enc.encode(f.name), crc = crc32(data), n = data.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(12, 0x21, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, n, true); lh.setUint32(22, n, true); lh.setUint16(26, nm.length, true);
+    parts.push(lh.buffer, nm, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(14, 0x21, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, n, true); ch.setUint32(24, n, true); ch.setUint16(28, nm.length, true); ch.setUint32(42, off, true);
+    cen.push(ch.buffer, nm); cl += 46 + nm.length; off += 30 + nm.length + n;
   }
-  return fs[0].id;
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, fs.length, true); e.setUint16(10, fs.length, true); e.setUint32(12, cl, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...cen, e.buffer], {type:"application/zip"});
 }
 async function importFolder(){
   if (!window.showDirectoryPicker){ toast("Перенос работает в Chrome или Edge на компьютере"); return; }
@@ -670,23 +682,29 @@ async function importFolder(){
     if (old.patient && !H.patient) H.patient = old.patient;
     H.cats = [...new Set([...(old.cats || []), ...H.cats])];
     hsave();
-    const total = H.docs.reduce((n, d) => n + (d.files || []).filter(x => x.kind !== "dicom" && !x.fid && x.path).length, 0);
-    let done = 0, failed = 0, found = 0, uploaded = 0;
+    const total = H.docs.reduce((n, d) => n + (d.files || []).filter(x => !x.fid && x.path).length, 0);
+    let done = 0, failed = 0, uploaded = 0;
     for (const d of H.docs){
       let changed = false;
       for (const x of (d.files || [])){
-        if (x.kind === "dicom" || x.fid || !x.path) continue;
-        done++; progress("Ищу на Диске: " + done + " из " + total);
+        if (x.fid || !x.path) continue;
+        done++; progress("Переношу на Диск: " + done + " из " + total);
         try {
           const seg = x.path.split("/"), base = seg[seg.length - 1];
-          const fid = await findOnDrive(tk, base, seg.length > 1 ? seg[seg.length - 2] : "");
-          if (fid){ found++; x.fid = fid; x.name = base; x.mime = mimeOf(base); changed = true; continue; }
-          let h = dir;
-          for (const sdir of seg.slice(0, -1)) h = await h.getDirectoryHandle(sdir);
-          const file = await (await h.getFileHandle(base)).getFile();
+          let file, mimeU = mimeOf(base), upName = base;
+          let hh = dir;
+          if (x.kind === "dicom"){
+            for (const sdir of seg) hh = await hh.getDirectoryHandle(sdir);
+            progress("Упаковываю снимки: " + base);
+            file = await zipDir(hh); upName = base + ".zip"; mimeU = "application/zip";
+          } else {
+            for (const sdir of seg.slice(0, -1)) hh = await hh.getDirectoryHandle(sdir);
+            file = await (await hh.getFileHandle(base)).getFile();
+          }
           const folder = await catDir(tk, seg.length > 1 ? seg[0] : d.cat);
-          const up = await uploadFile(tk, folder, base, file, mimeOf(base));
-          uploaded++; x.fid = up.id; x.name = up.name || base; x.mime = mimeOf(x.name); changed = true;
+          progress("Загружаю на Диск: " + done + " из " + total);
+          const up = await uploadFile(tk, folder, upName, file, mimeU);
+          uploaded++; x.fid = up.id; x.name = up.name || upName; x.mime = mimeU; changed = true;
         } catch(err) {
           if (err.message === "auth"){ progress(""); hsave(); toast("Вход Google истёк: нажми на кружок и запусти перенос ещё раз, продолжу с того места"); render(); return; }
           failed++;
@@ -695,7 +713,7 @@ async function importFolder(){
       if (changed){ d.updated = Date.now(); hsave(); }
     }
     progress(""); commit(); render();
-    toast((failed ? "Не получилось файлов: " + failed + ", запусти ещё раз. " : "Готово. ") + "Документов: " + docs().length + ", найдено на Диске: " + found + (uploaded ? ", загружено: " + uploaded : ""));
+    toast((failed ? "Не получилось файлов: " + failed + ", запусти ещё раз. " : "Готово. ") + "Документов: " + docs().length + ", загружено файлов: " + uploaded);
   } catch(err) {
     progress("");
     if (err && err.name === "AbortError") return;
@@ -753,7 +771,7 @@ document.addEventListener("paste", e => {
 });
 
 window.Health = {
-  render,
+  render, zipDir,
   open(){ render(); if (tokenValid()) hSync(false); else { hs.status = docs().length ? "Нужно войти: нажми на кружок сверху, чтобы обновить с Диска" : hs.status; render(); } },
   sync(){ if (tokenValid()) hSync(false); }
 };
