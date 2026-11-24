@@ -28,7 +28,9 @@ css.textContent = `
 #health .htop{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 10px}
 #health .hst{color:var(--muted);font-size:13px;margin:2px 0 8px}
 .hbtn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:7px 12px;font-weight:600;font-size:14px}
-.hbtn.pri{background:var(--grad);color:#fff;border-color:transparent}
+.hbtn.pri{background:var(--btn);color:var(--btn-ink);border-color:var(--btn-line)}
+.hbtn{box-shadow:0 1px 0 rgba(0,0,0,.03)}
+#health .chip[aria-pressed="true"]{background:var(--btn);border-color:var(--btn-line);color:var(--btn-ink)}
 .hbtn.sm{padding:4px 9px;font-size:13px}
 .hbtn.del{color:var(--danger);border-color:var(--danger)}
 .hyear{font-weight:700;color:var(--muted);margin:16px 0 6px;font-size:14px}
@@ -70,7 +72,7 @@ mark{background:#ffe58a;color:inherit;border-radius:3px}
 .hmeta{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:14px;margin-bottom:8px}
 .hmeta .k{color:var(--muted)}
 .hptabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-.hptabs .on{background:var(--grad);color:#fff;border-color:transparent}
+.hptabs .on{background:var(--btn);color:var(--btn-ink);border-color:var(--btn-line)}
 .hpv{border:1px solid var(--line);border-radius:12px;background:var(--surface);min-height:30vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .hpv iframe{width:100%;height:62vh;border:0;background:#fff}
 .hpv img{max-width:100%;max-height:72vh;cursor:zoom-in}
