@@ -689,7 +689,7 @@ async function importFolder(){
     H.cats = [...new Set([...(old.cats || []), ...H.cats])];
     hsave();
     const total = H.docs.reduce((n, d) => n + (d.files || []).filter(x => !x.fid && x.path).length, 0);
-    let done = 0, failed = 0, uploaded = 0;
+    let done = 0, failed = 0, uploaded = 0, lastErr = "";
     for (const d of H.docs){
       let changed = false;
       for (const x of (d.files || [])){
@@ -713,13 +713,13 @@ async function importFolder(){
           uploaded++; x.fid = up.id; x.name = up.name || upName; x.mime = mimeU; changed = true;
         } catch(err) {
           if (err.message === "auth"){ progress(""); hsave(); toast("Вход Google истёк: нажми на кружок и запусти перенос ещё раз, продолжу с того места"); render(); return; }
-          failed++;
+          failed++; lastErr = (err && err.message) || String(err);
         }
       }
       if (changed){ d.updated = Date.now(); hsave(); }
     }
     progress(""); commit(); render();
-    toast((failed ? "Не получилось файлов: " + failed + ", запусти ещё раз. " : "Готово. ") + "Документов: " + docs().length + ", загружено файлов: " + uploaded);
+    toast((failed ? "Не получилось файлов: " + failed + " (" + lastErr.slice(0, 80) + "), запусти ещё раз. " : "Готово. ") + "Документов: " + docs().length + ", загружено файлов: " + uploaded);
   } catch(err) {
     progress("");
     if (err && err.name === "AbortError") return;
