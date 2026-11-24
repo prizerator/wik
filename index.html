@@ -33,6 +33,15 @@
     --star:#f2b928; --danger:#ff7a6e; color-scheme:dark;
   }
 }
+/* раздел «Здоровье» всегда светлый, даже при тёмной теме телефона */
+body.light{
+  --bg:#f5f8fd; --surface:#ffffff; --ink:#1d2433; --muted:#667189; --line:#dfe6f1;
+  --accent:#3d6cf0; --accent-ink:#ffffff;
+  --grad:linear-gradient(135deg,#4f8cf5 0%,#7a6af0 55%,#c46ae0 100%);
+  --page:linear-gradient(170deg,#ffffff 0%,#f1f6fe 55%,#eaf1fb 100%);
+  --want:#c26a00; --done:#1f8a52; --want-bg:#fdecd0; --done-bg:#e0f2e8; --danger:#d4493c;
+  color-scheme:light;
+}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 .lists{display:flex;gap:6px;padding:0 16px 8px;overflow-x:auto;scrollbar-width:none}
@@ -458,6 +467,7 @@ function render(){
   $("#lists").innerHTML = LISTS.map(l => `<button type="button" data-list="${l.id}" aria-pressed="${ui.list===l.id}">${l.name}</button>`).join("");
   $("#sortBtn").textContent = ui.sort === "new" ? "Сначала новые" : "Сначала старые";
   const hv = c.view === "health";
+  document.body.classList.toggle("light", hv);
   const sq = !hv && ui.q.trim();
   $("#health").hidden = !hv; $("#board").hidden = hv; $("#addbar").hidden = hv || !!sq; $("#sortBtn").hidden = hv;
   delete $("#board").dataset.search;

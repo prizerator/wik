@@ -1,4 +1,4 @@
-const CACHE = "wiki-v21";
+const CACHE = "wiki-v22";
 const FILES = ["./", "index.html","health.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {
