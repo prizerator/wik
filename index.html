@@ -634,6 +634,8 @@ function ingClean(line){
   t = t.replace(/[\d.,/½¼¾-]+/g, " ").replace(new RegExp("(^|\\s)(" + UNITS + ")(?=\\s|$)", "gi"), " ");
   return t.replace(/\s+/g, " ").trim().split(" ").slice(0, 3).join(" ");
 }
+const STOPW = new Set("и,с,со,в,во,на,по,из,для,от,до,без,под,над,при,как,или,а,к,у,о,об,за,the,with,and,of".split(","));
+const titleNames = t => [...new Set(String(t || "").toLowerCase().replace(/[^a-zа-яё\s-]/gi, " ").split(/\s+/).filter(w => w.length > 2 && !STOPW.has(w)))].slice(0, 6);
 const ingNames = t => ingLines(t).map(ingClean).filter(Boolean);
 async function ingImage(name){
   for (const w of ["ru", "en"]){
@@ -748,7 +750,7 @@ function openEdit(id){
         ${d.poster ? `<button class="btn sec small" type="button" id="ePosterDel">Убрать</button>` : ""}
         <input id="eFile" type="file" accept="image/*" hidden></div>
         ${c.id === "media" ? `<div style="margin-top:8px"><button class="btn sec small" type="button" data-find="1">${d.loading ? "Ищу…" : "Найти постер"}</button></div>` : ""}
-        ${c.recipe ? `<div style="margin-top:8px"><button class="btn sec small" type="button" data-collage="1">${d.loading ? "Ищу картинки…" : "Картинки ингредиентов → коллаж"}</button></div>
+        ${c.recipe ? `<div style="margin-top:8px"><button class="btn sec small" type="button" data-collage="1">${d.loading ? "Ищу картинки…" : "Собрать картинку из названия"}</button></div>
           ${d.ingImgs ? `<div class="ingrow">${d.ingImgs.map(x => `<figure><i style="background-image:${x.url ? `url('${cssUrl(x.url)}')` : "none"}"></i><figcaption>${esc(x.name)}</figcaption></figure>`).join("")}</div><p>${d.collageOk ? "Коллаж собран и поставлен на карточку. Нажми «Сохранить»." : "Коллаж не собрался, поставил первую картинку."}</p>` : ""}` : ""}
         ${d.opts ? (d.opts.length ? `<div class="pgrid">${d.opts.map((o, k) => `<button type="button" class="pcell" data-pu="${k}" aria-label="${esc(o.label)}" title="${esc(o.label)}" style="background-image:url('${cssUrl(o.url)}')"></button>`).join("")}</div><p>Нажми на картинку, чтобы выбрать</p>` : `<p>Ничего не нашлось. Можно добавить из галереи.</p>`) : ""}</div>` : ""}
       <div class="actions"><button class="btn del" type="button" id="eDel">Удалить</button><button class="btn sec" type="button" id="eCancel">Отмена</button><button class="btn" type="button" id="eSave">Сохранить</button></div>`);
@@ -761,7 +763,7 @@ function openEdit(id){
       else if (n){ sync(); d.now = !d.now; paint(); }
       else if (pu){ sync(); d.poster = d.opts[+pu.dataset.pu].url; d.opts = null; paint(); }
       else if (fd){ sync(); if (d.loading) return; d.loading = true; d.opts = null; paint(); findPosters(d.title, d.types).then(r => { d.loading = false; d.opts = r; paint(); }); }
-      else if (cg){ sync(); if (d.loading) return; const names = [...new Set(ingNames(d.ing))].slice(0, 9); if (!names.length){ toast("Сначала впиши ингредиенты"); return; }
+      else if (cg){ sync(); if (d.loading) return; const names = titleNames(d.title); if (!names.length){ toast("Сначала впиши название"); return; }
         d.loading = true; paint();
         Promise.all(names.map(async nm => ({name:nm, url:await ingImage(nm)}))).then(async arr => {
           d.ingImgs = arr; const urls = arr.map(x => x.url).filter(Boolean);
