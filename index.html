@@ -175,6 +175,14 @@ header.searching h1{display:none}
 .list.tl .cbody{overflow:hidden;min-height:0}
 .list.tl .cn{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap}
 .list.tl .meta{margin-top:auto}
+.list.tl .card.has-poster .cbody{padding-right:12px;min-height:0}
+.list.tl .poster{inset:0;width:auto;-webkit-mask-image:none;mask-image:none;clip-path:none;background-position:center}
+.list.tl .card.has-poster::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,8,25,.55),rgba(10,8,25,.82))}
+.list.tl .card.has-poster .cbody,.list.tl .card.has-poster .ct,.list.tl .card.has-poster .cn{color:#fff}
+.ingrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.ingrow figure{margin:0;width:64px;text-align:center;font-size:11px;color:var(--muted)}
+.ingrow i{display:block;width:64px;height:64px;border-radius:10px;background:var(--bg) center/cover no-repeat;box-shadow:inset 0 0 0 1px var(--line)}
+.ingrow figcaption{margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .card.side{--pw:min(30%,110px)}
 .card.side .poster{right:150px}
 .card.side .cbody{min-width:0}
@@ -257,6 +265,7 @@ const LISTS = [
   {id:"notes", name:"Мысли", st:[{id:"want", label:"Мысли", c:"var(--accent)", bg:"var(--bg)"}], long:true, tiles:true, ph:"Новая мысль…", empty:"Пока пусто. Запиши первую мысль"},
   {id:"wishes", name:"Хотелки", st:[{...ST_WANT, label:"Хочу"}, {...ST_DONE, label:"Куплено"}], poster:true, price:true, link:true, side:true,
     doneBtn:"✓ Куплено", ph:"Что хочу купить…", empty:"Пока пусто. Запиши, что хочешь"},
+  {id:"recipes", name:"Рецепты", st:[{id:"want", label:"Рецепты", c:"var(--accent)", bg:"var(--bg)"}], long:true, tiles:true, poster:true, recipe:true, ph:"Новый рецепт…", empty:"Пока пусто. Запиши первый рецепт"},
   {id:"receipts", name:"Чеки", view:"receipts", st:[{id:"want", label:"Чеки", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: что куплено, магазин, дата…", empty:""},
   {id:"health", name:"Здоровье", view:"health", st:[{id:"want", label:"Здоровье", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: название, показатель, клиника…", empty:""}
 ];
@@ -457,12 +466,15 @@ window.addEventListener("online", syncIfStale);
 function cardHtml(i, showList){
   const c = LISTS.find(x => x.id === (i.list || "media")) || LISTS[0], s = c.st.find(x => x.id === i.status) || c.st[0];
   const tags = c.types ? (i.types || []).map(t => `<span class="tag">${dot(t)}${esc(t)}</span>`).join("") : "";
-  const note = i.note ? `<div class="cn${c.long ? " long" : ""}">${esc(i.note)}</div>` : "";
+  const ingList = c.recipe ? ingNames(i.ing) : [];
+  const note = c.recipe ? (ingList.length ? `<div class="cn">${esc(ingList.join(" · "))}</div>` : (i.note ? `<div class="cn long">${esc(i.note)}</div>` : ""))
+    : (i.note ? `<div class="cn${c.long ? " long" : ""}">${esc(i.note)}</div>` : "");
   const rating = c.rating && i.status === "done" && i.rating ? `<span class="stars" aria-label="Оценка ${i.rating} из 5">${stars(i.rating)}</span>` : "";
   const nowb = c.now && i.now && i.status === "want" ? `<span class="nowbadge"><i></i>${c.nowBadge}</span>` : "";
   const due = c.due && i.due ? `<span class="tag">до ${fmtDate(i.due)}</span>` : "";
   const price = c.price && i.price ? `<span class="tag">${esc(i.price)}</span>` : "";
   const link = c.link && /^https?:\/\//i.test(i.link || "") ? `<a class="tag" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">🔗 ссылка</a>` : "";
+  const ingTag = c.recipe && ingList.length ? `<span class="tag">🥕 ${ingList.length}</span>` : "";
   const lst = showList ? `<span class="tag lst">${esc(c.name)}</span>` : "";
   const side = c.side && i.status === "want"
     ? `<div class="sideacts"><button class="sq ok" type="button" data-done="${i.id}"><b>✓</b>Куплено</button><button class="sq" type="button" data-drop="${i.id}"><b>✕</b>Расхотеть</button></div>` : "";
@@ -471,7 +483,7 @@ function cardHtml(i, showList){
   const poster = i.poster ? `<div class="poster" style="background-image:url('${cssUrl(i.poster)}')"></div>` : "";
   return `<article class="card${i.poster?" has-poster":""}${side?" side":""}" tabindex="0" role="button" data-id="${i.id}" style="--c:${s.c}">
     ${poster}<div class="cbody"><div class="ct">${esc(i.title)}</div>${note}
-    <div class="meta">${lst}${nowb}${tags}${due}${price}${link}${rating}<span class="date">${fmtDate(i.created)}</span></div>${acts}</div>${side}</article>`;
+    <div class="meta">${lst}${ingTag}${nowb}${tags}${due}${price}${link}${rating}<span class="date">${fmtDate(i.created)}</span></div>${acts}</div>${side}</article>`;
 }
 
 function healthDocs(){ try { const v = JSON.parse(localStorage.getItem("wiki-health")); return v && Array.isArray(v.docs) ? v.docs.filter(d => !d.deleted) : []; } catch(e) { return []; } }
@@ -614,6 +626,43 @@ function shrinkImage(file){
   });
 }
 
+/* ---------- рецепты: ингредиенты, картинки, коллаж ---------- */
+const ingLines = t => String(t || "").split("\n").map(x => x.trim()).filter(Boolean);
+const UNITS = "кг|г|гр|грамм\\w*|мл|л|литр\\w*|шт\\.?|штук\\w*|ст\\.?\\s?л\\.?|ч\\.?\\s?л\\.?|стакан\\w*|щепотк\\w*|зубчик\\w*|пучок|пучка|кусочек|кусочка|по вкусу|g|kg|ml|tbsp|tsp|cup|cups|pcs";
+function ingClean(line){
+  let t = String(line).toLowerCase().replace(/\(.*?\)/g, " ").replace(/[,;:].*$/, " ");
+  t = t.replace(/[\d.,/½¼¾-]+/g, " ").replace(new RegExp("(^|\\s)(" + UNITS + ")(?=\\s|$)", "gi"), " ");
+  return t.replace(/\s+/g, " ").trim().split(" ").slice(0, 3).join(" ");
+}
+const ingNames = t => ingLines(t).map(ingClean).filter(Boolean);
+async function ingImage(name){
+  for (const w of ["ru", "en"]){
+    try {
+      const u = `https://${w}.wikipedia.org/w/api.php?format=json&origin=*&action=query&redirects=1&generator=search&gsrlimit=3&gsrsearch=${encodeURIComponent(name)}&prop=pageimages&piprop=thumbnail&pithumbsize=160`;
+      const r = await (await fetch(u)).json();
+      const pgs = Object.values((r.query || {}).pages || {}).sort((a, b) => (a.index || 0) - (b.index || 0));
+      const hit = pgs.find(p => p.thumbnail && /^https:\/\//.test(p.thumbnail.source) && /\.(jpe?g|png|webp)/i.test(p.thumbnail.source));
+      if (hit) return hit.thumbnail.source;
+    } catch(e) {}
+  }
+  return "";
+}
+function loadImg(url){
+  return new Promise(res => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => res(im); im.onerror = () => res(null); im.src = url; });
+}
+async function makeCollage(urls){
+  const ims = (await Promise.all(urls.map(loadImg))).filter(Boolean).slice(0, 9);
+  if (!ims.length) return "";
+  const n = ims.length, cols = n <= 1 ? 1 : n <= 4 ? 2 : 3, rows = Math.ceil(n / cols), W = 480, cw = W / cols, ch = cw;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = Math.round(rows * ch);
+  const g2 = cv.getContext("2d"); g2.fillStyle = "#222"; g2.fillRect(0, 0, cv.width, cv.height);
+  ims.forEach((im, k) => {
+    const x = (k % cols) * cw, y = Math.floor(k / cols) * ch, sc = Math.max(cw / im.width, ch / im.height), sw = cw / sc, sh = ch / sc;
+    g2.drawImage(im, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, x, y, cw, ch);
+  });
+  try { return cv.toDataURL("image/jpeg", .7); } catch(e) { return ""; }
+}
+
 async function findPosters(title, types){
   const t = (title || "").trim(); if (!t) return [];
   const tp = types || [], isBook = tp.includes("книга");
@@ -678,13 +727,14 @@ function openEdit(id){
   const it = items.find(x => x.id === id); if (!it) return;
   const c = L();
   const d = {...it, types:[...(it.types || [])], showNew:false};
-  const sync = () => { const t = $("#eTitle"); if (t){ d.title = t.value; d.note = $("#eNote").value; const a = $("#eDue"); if (a) d.due = a.value; const b = $("#ePrice"); if (b) d.price = b.value; const k = $("#eLink"); if (k) d.link = k.value; } };
+  const sync = () => { const t = $("#eTitle"); if (t){ d.title = t.value; d.note = $("#eNote").value; const ig = $("#eIng"); if (ig) d.ing = ig.value; const a = $("#eDue"); if (a) d.due = a.value; const b = $("#ePrice"); if (b) d.price = b.value; const k = $("#eLink"); if (k) d.link = k.value; } };
   const paint = () => {
     const types = [...new Set([...allTypes(), ...d.types])];
     openOverlay(`
       <h2>Запись</h2>
       <div><label for="eTitle">Название</label><input id="eTitle" type="text" value="${esc(d.title)}"></div>
-      <div><label for="eNote">${c.long ? "Текст" : "Заметка"}</label><textarea id="eNote"${c.long ? ' style="min-height:200px"' : ""}>${esc(d.note)}</textarea></div>
+      ${c.recipe ? `<div><label for="eIng">Ингредиенты (по одному в строке)</label><textarea id="eIng" style="min-height:120px" placeholder="2 яйца&#10;200 г муки&#10;молоко">${esc(d.ing || "")}</textarea></div>` : ""}
+      <div><label for="eNote">${c.recipe ? "Как готовить" : c.long ? "Текст" : "Заметка"}</label><textarea id="eNote"${c.long ? ' style="min-height:200px"' : ""}>${esc(d.note)}</textarea></div>
       ${c.due ? `<div><label for="eDue">Срок (необязательно)</label><input id="eDue" type="date" value="${esc(d.due || "")}"></div>` : ""}
       ${c.price ? `<div><label for="ePrice">Цена (необязательно)</label><input id="ePrice" type="text" value="${esc(d.price || "")}" placeholder="например 1500 zł"></div>` : ""}
       ${c.link ? `<div><label for="eLink">Ссылка (необязательно)</label><input id="eLink" type="text" value="${esc(d.link || "")}" placeholder="https://…" autocapitalize="off"></div>` : ""}
@@ -698,17 +748,28 @@ function openEdit(id){
         ${d.poster ? `<button class="btn sec small" type="button" id="ePosterDel">Убрать</button>` : ""}
         <input id="eFile" type="file" accept="image/*" hidden></div>
         ${c.id === "media" ? `<div style="margin-top:8px"><button class="btn sec small" type="button" data-find="1">${d.loading ? "Ищу…" : "Найти постер"}</button></div>` : ""}
+        ${c.recipe ? `<div style="margin-top:8px"><button class="btn sec small" type="button" data-collage="1">${d.loading ? "Ищу картинки…" : "Картинки ингредиентов → коллаж"}</button></div>
+          ${d.ingImgs ? `<div class="ingrow">${d.ingImgs.map(x => `<figure><i style="background-image:${x.url ? `url('${cssUrl(x.url)}')` : "none"}"></i><figcaption>${esc(x.name)}</figcaption></figure>`).join("")}</div><p>${d.collageOk ? "Коллаж собран и поставлен на карточку. Нажми «Сохранить»." : "Коллаж не собрался, поставил первую картинку."}</p>` : ""}` : ""}
         ${d.opts ? (d.opts.length ? `<div class="pgrid">${d.opts.map((o, k) => `<button type="button" class="pcell" data-pu="${k}" aria-label="${esc(o.label)}" title="${esc(o.label)}" style="background-image:url('${cssUrl(o.url)}')"></button>`).join("")}</div><p>Нажми на картинку, чтобы выбрать</p>` : `<p>Ничего не нашлось. Можно добавить из галереи.</p>`) : ""}</div>` : ""}
       <div class="actions"><button class="btn del" type="button" id="eDel">Удалить</button><button class="btn sec" type="button" id="eCancel">Отмена</button><button class="btn" type="button" id="eSave">Сохранить</button></div>`);
     $("#sheet").onclick = e => {
       const t = e.target.closest("[data-t]"), s = e.target.closest("[data-s]"), r = e.target.closest("[data-r]"),
-            n = e.target.closest("[data-now]"), o = e.target.closest("[data-other]"), pu = e.target.closest("[data-pu]"), fd = e.target.closest("[data-find]");
+            n = e.target.closest("[data-now]"), o = e.target.closest("[data-other]"), pu = e.target.closest("[data-pu]"), fd = e.target.closest("[data-find]"), cg = e.target.closest("[data-collage]");
       if (t){ sync(); const v = t.dataset.t; d.types = d.types.includes(v) ? d.types.filter(x => x !== v) : [...d.types, v]; paint(); }
       else if (s){ sync(); d.status = s.dataset.s; if (d.status !== "done") d.rating = 0; if (d.status === "done") d.now = false; paint(); }
       else if (r){ sync(); const k = +r.dataset.r; d.rating = d.rating === k ? 0 : k; paint(); }
       else if (n){ sync(); d.now = !d.now; paint(); }
       else if (pu){ sync(); d.poster = d.opts[+pu.dataset.pu].url; d.opts = null; paint(); }
       else if (fd){ sync(); if (d.loading) return; d.loading = true; d.opts = null; paint(); findPosters(d.title, d.types).then(r => { d.loading = false; d.opts = r; paint(); }); }
+      else if (cg){ sync(); if (d.loading) return; const names = [...new Set(ingNames(d.ing))].slice(0, 9); if (!names.length){ toast("Сначала впиши ингредиенты"); return; }
+        d.loading = true; paint();
+        Promise.all(names.map(async nm => ({name:nm, url:await ingImage(nm)}))).then(async arr => {
+          d.ingImgs = arr; const urls = arr.map(x => x.url).filter(Boolean);
+          const col = await makeCollage(urls);
+          d.collageOk = !!col; if (col) d.poster = col; else if (urls[0]) d.poster = urls[0];
+          d.loading = false; paint();
+        });
+      }
       else if (o){ sync(); d.showNew = !d.showNew; paint(); const inp = $("#eNew"); if (inp) inp.focus(); }
     };
     const addCustom = () => {
@@ -729,7 +790,7 @@ function openEdit(id){
     $("#eSave").onclick = () => {
       sync();
       if (!d.title.trim()){ $("#eTitle").focus(); return; }
-      Object.assign(it, {title:d.title.trim(), note:d.note.trim(), types:d.types, status:d.status, now:c.now && d.status==="want" ? !!d.now : false, rating:c.rating && d.status==="done" ? d.rating : 0, poster:d.poster || "", due:c.due ? (d.due || "") : "", price:c.price ? (d.price || "").trim() : "", link:c.link ? (d.link || "").trim() : ""});
+      Object.assign(it, {title:d.title.trim(), note:d.note.trim(), types:d.types, status:d.status, now:c.now && d.status==="want" ? !!d.now : false, rating:c.rating && d.status==="done" ? d.rating : 0, poster:d.poster || "", due:c.due ? (d.due || "") : "", ing:c.recipe ? (d.ing || "").trim() : undefined, price:c.price ? (d.price || "").trim() : "", link:c.link ? (d.link || "").trim() : ""});
       touch(it); save(); closeOverlay();
     };
     const del = $("#eDel");
