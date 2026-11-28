@@ -179,6 +179,14 @@ header.searching h1{display:none}
 .list.tl .poster{inset:0;width:auto;-webkit-mask-image:none;mask-image:none;clip-path:none;background-position:center}
 .list.tl .card.has-poster::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,8,25,.55),rgba(10,8,25,.82))}
 .list.tl .card.has-poster .cbody,.list.tl .card.has-poster .ct,.list.tl .card.has-poster .cn{color:#fff}
+.okpick{display:flex;gap:2px}
+.okpick button{border:0;background:transparent;font-size:32px;line-height:1;padding:2px 4px;filter:grayscale(1);opacity:.28;transition:filter .2s,opacity .2s,transform .15s}
+.okpick button.on{filter:none;opacity:1}
+.okpick button:active{transform:scale(.88)}
+.oks{letter-spacing:1px;font-size:14px}
+.lblrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.lblrow label{margin:0}
+.xbtn{border:0;background:var(--bg);border-radius:999px;padding:3px 11px;font-size:12.5px;color:var(--muted);box-shadow:inset 0 0 0 1px var(--line)}
 .ingrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .ingrow figure{margin:0;width:64px;text-align:center;font-size:11px;color:var(--muted)}
 .ingrow i{display:block;width:64px;height:64px;border-radius:10px;background:var(--bg) center/cover no-repeat;box-shadow:inset 0 0 0 1px var(--line)}
@@ -265,7 +273,7 @@ const LISTS = [
   {id:"notes", name:"Мысли", st:[{id:"want", label:"Мысли", c:"var(--accent)", bg:"var(--bg)"}], long:true, tiles:true, ph:"Новая мысль…", empty:"Пока пусто. Запиши первую мысль"},
   {id:"wishes", name:"Хотелки", st:[{...ST_WANT, label:"Хочу"}, {...ST_DONE, label:"Куплено"}], poster:true, price:true, link:true, side:true,
     doneBtn:"✓ Куплено", ph:"Что хочу купить…", empty:"Пока пусто. Запиши, что хочешь"},
-  {id:"recipes", name:"Рецепты", st:[{id:"want", label:"Рецепты", c:"var(--accent)", bg:"var(--bg)"}], long:true, tiles:true, poster:true, recipe:true, ph:"Новый рецепт…", empty:"Пока пусто. Запиши первый рецепт"},
+  {id:"recipes", name:"Рецепты", st:[{id:"want", label:"Рецепты", c:"var(--accent)", bg:"var(--bg)"}], long:true, tiles:true, poster:true, recipe:true, okRate:true, ph:"Новый рецепт…", empty:"Пока пусто. Запиши первый рецепт"},
   {id:"receipts", name:"Чеки", view:"receipts", st:[{id:"want", label:"Чеки", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: что куплено, магазин, дата…", empty:""},
   {id:"health", name:"Здоровье", view:"health", st:[{id:"want", label:"Здоровье", c:"var(--accent)", bg:"var(--bg)"}], ph:"Поиск: название, показатель, клиника…", empty:""}
 ];
@@ -470,6 +478,7 @@ function cardHtml(i, showList){
   const note = c.recipe ? (ingList.length ? `<div class="cn">${esc(ingList.join(" · "))}</div>` : (i.note ? `<div class="cn long">${esc(i.note)}</div>` : ""))
     : (i.note ? `<div class="cn${c.long ? " long" : ""}">${esc(i.note)}</div>` : "");
   const rating = c.rating && i.status === "done" && i.rating ? `<span class="stars" aria-label="Оценка ${i.rating} из 5">${stars(i.rating)}</span>` : "";
+  const okr = c.okRate && i.rating ? `<span class="oks" aria-label="Оценка ${i.rating} из 5">${"👌".repeat(i.rating)}</span>` : "";
   const nowb = c.now && i.now && i.status === "want" ? `<span class="nowbadge"><i></i>${c.nowBadge}</span>` : "";
   const due = c.due && i.due ? `<span class="tag">до ${fmtDate(i.due)}</span>` : "";
   const price = c.price && i.price ? `<span class="tag">${esc(i.price)}</span>` : "";
@@ -483,7 +492,7 @@ function cardHtml(i, showList){
   const poster = i.poster ? `<div class="poster" style="background-image:url('${cssUrl(i.poster)}')"></div>` : "";
   return `<article class="card${i.poster?" has-poster":""}${side?" side":""}" tabindex="0" role="button" data-id="${i.id}" style="--c:${s.c}">
     ${poster}<div class="cbody"><div class="ct">${esc(i.title)}</div>${note}
-    <div class="meta">${lst}${ingTag}${nowb}${tags}${due}${price}${link}${rating}<span class="date">${fmtDate(i.created)}</span></div>${acts}</div>${side}</article>`;
+    <div class="meta">${lst}${ingTag}${okr}${nowb}${tags}${due}${price}${link}${rating}<span class="date">${fmtDate(i.created)}</span></div>${acts}</div>${side}</article>`;
 }
 
 function healthDocs(){ try { const v = JSON.parse(localStorage.getItem("wiki-health")); return v && Array.isArray(v.docs) ? v.docs.filter(d => !d.deleted) : []; } catch(e) { return []; } }
@@ -687,7 +696,7 @@ async function findDishImages(title){
   }
   const seen = new Set(), out = [];
   (await Promise.all(jobs)).flat().forEach(x => { if (!seen.has(x.url)){ seen.add(x.url); out.push(x); } });
-  return out.slice(0, 12);
+  return out.slice(0, 48);
 }
 
 async function findPosters(title, types){
@@ -760,8 +769,8 @@ function openEdit(id){
     openOverlay(`
       <h2>Запись</h2>
       <div><label for="eTitle">Название</label><input id="eTitle" type="text" value="${esc(d.title)}"></div>
-      ${c.recipe ? `<div><label for="eIng">Ингредиенты (по одному в строке)</label><textarea id="eIng" style="min-height:120px" placeholder="2 яйца&#10;200 г муки&#10;молоко">${esc(d.ing || "")}</textarea></div>` : ""}
-      <div><label for="eNote">${c.recipe ? "Как готовить" : c.long ? "Текст" : "Заметка"}</label><textarea id="eNote"${c.long ? ' style="min-height:200px"' : ""}>${esc(d.note)}</textarea></div>
+      ${c.recipe ? `<div><div class="lblrow"><label for="eIng">Ингредиенты (по одному в строке)</label><button class="xbtn" type="button" data-x="ing">${d.ingOpen ? "свернуть ▴" : "развернуть ▾"}</button></div><textarea id="eIng" style="min-height:${d.ingOpen ? 340 : 110}px" placeholder="2 яйца&#10;200 г муки&#10;молоко">${esc(d.ing || "")}</textarea></div>` : ""}
+      <div>${c.recipe ? `<div class="lblrow"><label for="eNote">Как готовить</label><button class="xbtn" type="button" data-x="note">${d.noteOpen ? "свернуть ▴" : "развернуть ▾"}</button></div>` : `<label for="eNote">${c.long ? "Текст" : "Заметка"}</label>`}<textarea id="eNote"${c.long ? ` style="min-height:${c.recipe && d.noteOpen ? 420 : c.recipe ? 130 : 200}px"` : ""}>${esc(d.note)}</textarea></div>
       ${c.due ? `<div><label for="eDue">Срок (необязательно)</label><input id="eDue" type="date" value="${esc(d.due || "")}"></div>` : ""}
       ${c.price ? `<div><label for="ePrice">Цена (необязательно)</label><input id="ePrice" type="text" value="${esc(d.price || "")}" placeholder="например 1500 zł"></div>` : ""}
       ${c.link ? `<div><label for="eLink">Ссылка (необязательно)</label><input id="eLink" type="text" value="${esc(d.link || "")}" placeholder="https://…" autocapitalize="off"></div>` : ""}
@@ -769,23 +778,26 @@ function openEdit(id){
         ${d.showNew ? `<div class="row" style="margin-top:8px"><input id="eNew" type="text" placeholder="свой тип, например подкаст" style="flex:1;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg)"><button class="btn small" type="button" id="eNewOk">Добавить</button></div>` : ""}</div>` : ""}
       ${c.st.length > 1 ? `<div><label>Список</label><div class="seg">${c.st.map(s => `<button type="button" data-s="${s.id}" aria-pressed="${d.status===s.id}" style="--c:${s.c};--cbg:${s.bg}">${s.label}</button>`).join("")}</div></div>` : ""}
       ${c.now && d.status==="want" ? `<div><button class="chip" type="button" data-now="1" aria-pressed="${!!d.now}">${d.now ? c.now + " ●" : "▶ " + c.now}</button></div>` : ""}
+      ${c.okRate ? `<div><label>Оценка</label><div class="okpick">${[1,2,3,4,5].map(n => `<button type="button" data-r="${n}" class="${d.rating>=n?"on":""}" aria-label="${n}">👌</button>`).join("")}</div></div>` : ""}
       ${c.rating && d.status==="done" ? `<div><label>Оценка</label><div class="starpick">${[1,2,3,4,5].map(n => `<button type="button" data-r="${n}" class="${d.rating>=n?"on":""}" aria-label="${n}">★</button>`).join("")}</div></div>` : ""}
       ${c.poster ? `<div><label>${c.id==="media" ? "Постер" : "Картинка"}</label><div class="posterrow"><div class="thumb"${d.poster ? ` style="background-image:url('${cssUrl(d.poster)}')"` : ""}></div>
         <button class="btn sec small" type="button" id="ePick">${d.poster ? "Сменить" : "Добавить из галереи"}</button>
         ${d.poster ? `<button class="btn sec small" type="button" id="ePosterDel">Убрать</button>` : ""}
         <input id="eFile" type="file" accept="image/*" hidden></div>
         ${c.id === "media" || c.recipe ? `<div style="margin-top:8px"><button class="btn sec small" type="button" data-find="1">${d.loading ? "Ищу…" : c.recipe ? "Найти картинку по названию" : "Найти постер"}</button></div>` : ""}
-        ${d.opts ? (d.opts.length ? `<div class="pgrid">${d.opts.map((o, k) => `<button type="button" class="pcell" data-pu="${k}" aria-label="${esc(o.label)}" title="${esc(o.label)}" style="background-image:url('${cssUrl(o.url)}')"></button>`).join("")}</div><p>Нажми на картинку, чтобы выбрать</p>` : `<p>Ничего не нашлось. Можно добавить из галереи.</p>`) : ""}</div>` : ""}
+        ${d.opts ? (d.opts.length ? `<div class="pgrid">${d.opts.map((o, k) => `<button type="button" class="pcell" data-pu="${k}" aria-label="${esc(o.label)}" title="${esc(o.label)}" style="background-image:url('${cssUrl(o.url)}')"></button>`).join("")}</div>${c.recipe && d.all && d.all.length > 12 ? `<div style="margin-top:8px"><button class="btn sec small" type="button" data-more="1">Показать другие картинки</button></div>` : ""}<p>Нажми на картинку, чтобы выбрать</p>` : `<p>Ничего не нашлось. Можно добавить из галереи.</p>`) : ""}</div>` : ""}
       <div class="actions"><button class="btn del" type="button" id="eDel">Удалить</button><button class="btn sec" type="button" id="eCancel">Отмена</button><button class="btn" type="button" id="eSave">Сохранить</button></div>`);
     $("#sheet").onclick = e => {
       const t = e.target.closest("[data-t]"), s = e.target.closest("[data-s]"), r = e.target.closest("[data-r]"),
-            n = e.target.closest("[data-now]"), o = e.target.closest("[data-other]"), pu = e.target.closest("[data-pu]"), fd = e.target.closest("[data-find]");
+            n = e.target.closest("[data-now]"), o = e.target.closest("[data-other]"), pu = e.target.closest("[data-pu]"), fd = e.target.closest("[data-find]"), xb = e.target.closest("[data-x]"), mo = e.target.closest("[data-more]");
       if (t){ sync(); const v = t.dataset.t; d.types = d.types.includes(v) ? d.types.filter(x => x !== v) : [...d.types, v]; paint(); }
       else if (s){ sync(); d.status = s.dataset.s; if (d.status !== "done") d.rating = 0; if (d.status === "done") d.now = false; paint(); }
       else if (r){ sync(); const k = +r.dataset.r; d.rating = d.rating === k ? 0 : k; paint(); }
       else if (n){ sync(); d.now = !d.now; paint(); }
       else if (pu){ sync(); d.poster = d.opts[+pu.dataset.pu].url; d.opts = null; paint(); }
-      else if (fd){ sync(); if (d.loading) return; d.loading = true; d.opts = null; paint(); (c.recipe ? findDishImages(d.title) : findPosters(d.title, d.types)).then(r => { d.loading = false; d.opts = r; paint(); }); }
+      else if (xb){ sync(); const k = xb.dataset.x === "ing" ? "ingOpen" : "noteOpen"; d[k] = !d[k]; paint(); }
+      else if (mo){ sync(); if (d.all && d.all.length){ d.off = ((d.off || 0) + 12) % d.all.length; d.opts = d.all.slice(d.off, d.off + 12); if (d.opts.length < 12) d.opts = d.opts.concat(d.all.slice(0, 12 - d.opts.length)); } paint(); }
+      else if (fd){ sync(); if (d.loading) return; d.loading = true; d.opts = null; paint(); (c.recipe ? findDishImages(d.title) : findPosters(d.title, d.types)).then(r => { d.loading = false; d.all = r; d.off = 0; d.opts = c.recipe ? r.slice(0, 12) : r; paint(); }); }
       else if (o){ sync(); d.showNew = !d.showNew; paint(); const inp = $("#eNew"); if (inp) inp.focus(); }
     };
     const addCustom = () => {
@@ -806,7 +818,7 @@ function openEdit(id){
     $("#eSave").onclick = () => {
       sync();
       if (!d.title.trim()){ $("#eTitle").focus(); return; }
-      Object.assign(it, {title:d.title.trim(), note:d.note.trim(), types:d.types, status:d.status, now:c.now && d.status==="want" ? !!d.now : false, rating:c.rating && d.status==="done" ? d.rating : 0, poster:d.poster || "", due:c.due ? (d.due || "") : "", ing:c.recipe ? (d.ing || "").trim() : undefined, price:c.price ? (d.price || "").trim() : "", link:c.link ? (d.link || "").trim() : ""});
+      Object.assign(it, {title:d.title.trim(), note:d.note.trim(), types:d.types, status:d.status, now:c.now && d.status==="want" ? !!d.now : false, rating:c.okRate ? (d.rating || 0) : c.rating && d.status==="done" ? d.rating : 0, poster:d.poster || "", due:c.due ? (d.due || "") : "", ing:c.recipe ? (d.ing || "").trim() : undefined, price:c.price ? (d.price || "").trim() : "", link:c.link ? (d.link || "").trim() : ""});
       touch(it); save(); closeOverlay();
     };
     const del = $("#eDel");
